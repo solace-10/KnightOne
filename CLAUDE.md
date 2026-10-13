@@ -2,92 +2,172 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Build System
+## Project Overview
 
-This is a C++20 CMake project called "Knight-One" with multiple executable targets:
+Knight-One (Wings of Steel) is a space combat demo built as a C++20 CMake project on Pandora, a
+custom engine shared with other projects (e.g. Apsis). It consists of the engine (`pandora/`), the
+game (`game/`) and a geometry processing tool (`dome/`).
 
-### Build Commands
-- **Configure**: `cmake --preset debug-linux` (or debug-windows/debug-web)
-- **Build Linux**: `cmake --build build/debug-linux --target setup_compile_commands game dome`
-- **Build Windows**: `cmake --build build/debug-windows --target setup_compile_commands game dome`
-- **Build Web**: `cmake --build build/debug-web --target setup_compile_commands game`
+**Port in progress:** Knight-One was written against an old version of Pandora. `pandora/` has
+since been replaced with the current engine, and `game/` and `dome/` have not yet been ported to
+it, so the project does not currently build. Expect engine APIs used by the game to have been
+renamed, moved or removed; use `pandora/src/` as the source of truth, not the game's call sites.
 
-### Available Targets
-- `game` - Main game executable (primary target)
-- `dome` - Geometry processing tool for texture edge detection and mesh generation
-- `pandora` - Core engine library (not an executable)
+## Build Commands
 
-### Forge Tool
-Forge is a Go CLI tool for managing web asset pipelines. Located at `pandora/tools/forge/`.
+### First-time setup
 
-**Build Forge** (requires Go 1.23+):
+**`pandora/ext/`** (emsdk + FetchContent deps, ~4 GB) is gitignored and not part of the subtree.
+Either run `pandora/scripts/setup_emscripten.sh` (and let CMake's FetchContent populate the rest
+on configure), or symlink it to an already-populated checkout, e.g.
+`ln -s ~/dev/apsis/pandora/ext pandora/ext` — in which case it is *shared*, so a dependency bump
+in either tree is seen by both.
+
+### Pandora changes (git subtree)
+
+`pandora/` is a git subtree of `git@github.com:solace-10/pandora.git`, which other projects
+share. It is plain files in this repo: edit and commit engine and game changes together, in one
+commit if that's natural, on any branch. Sync with upstream via `./scripts/pandora.sh`:
+- `status` — engine commits not yet pushed upstream, and upstream commits not yet pulled.
+- `sync` — `pull` (squash-merge upstream `main` into `pandora/`), then `push` (split the
+  `pandora/` part of our commits out and push it to upstream `main`). Run after `git commit`,
+  then `git push` this repo last, since the pull may add a merge commit.
+- Only push from this repo's `main`: engine changes on a feature branch go upstream after the
+  branch merges, so unlanded experiments don't reach the other projects. The script enforces it.
+- Engine changes are seen by every project using Pandora. Changes made only to get Knight-One
+  compiling should be done in `game/`, not by reshaping the engine around old game code.
+- Don't run `git subtree` by hand with a custom `-m` on `add`, and don't rewrite the
+  `Add pandora as a git subtree` commit: its `git-subtree-*` trailers stop `split` from treating
+  early history (when `pandora/` was a plain directory) as pandora's.
+
+### Configure (run once or after CMakeLists.txt changes)
+```bash
+cmake --preset debug-linux     # Linux
+cmake --preset debug-windows   # Windows
+cmake --preset debug-web       # Web (Emscripten)
 ```
-cd pandora/tools/forge/src
-go build -o ../bin/forge.exe .
+
+### Build
+```bash
+cmake --build build/debug-linux --target setup_compile_commands game dome   # Linux
+cmake --build build/debug-windows --target setup_compile_commands game dome # Windows
+cmake --build build/debug-web --target setup_compile_commands game          # Web
 ```
 
-**Commands**:
-- `forge manifest` - Generate asset manifest (auto-runs during web builds via CMake)
-- `forge serve` - Serve assets locally for development
-- `forge upload` - Upload assets to Cloudflare R2
-- `forge package` - Package everything for deployment
+Targets: `game` (main executable), `dome` (geometry tool), `pandora` (engine library).
+
+### Forge
+
+Forge is a Go CLI for the web asset pipeline, in `pandora/tools/forge/`. Prebuilt binaries live in
+`pandora/tools/forge/bin/forge-<os>-<arch>` (e.g. `forge-darwin-arm64`).
+- `forge manifest` — generate `game/bin/manifest.json` (gitignored; auto-runs during web builds)
+- `forge serve` — serve assets locally for development
+- `forge upload` — upload assets to Cloudflare R2
+- `forge package` — package everything for deployment
+
+`forge manifest` ships everything under `game/bin/data/core/`, so don't put documentation or other
+non-runtime files in that tree.
 
 ### Dependencies
 Linux setup: `sudo apt install clang clangd cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libglfw3-dev libx11-xcb-dev`
 
+## Formatting
+
+Format with clang-format (WebKit-based): `clang-format -i path/to/file.cpp`
+
+## Project Structure
+
+- `pandora/` - Core engine library (rendering, ECS, physics, resources, input, VFS, ImGui)
+- `game/` - Main game application:
+  - Space exploration with sectors, ships, hyperscape navigation
+  - Ship builder with prefab system and hardpoint management
+  - Player controller, weapon systems, navigation systems
+  - Fleet management and encounter mechanics with a card-based AI system
+  - Encounters are loaded at random from `game/bin/data/core/encounters/difficulty<n>/`; encounter
+    decks are tier-based cards defining enemy waves and behaviour
+  - Entity prefabs (ships, weapons, ammo) in `game/bin/data/core/entity_prefabs/`
+  - Assets (models, textures, fonts, UI icons) in `game/assets/`
+- `dome/` - Geometry processing tool: edge detection from textures, vertex simplification, mesh
+  generation with Delaunay triangulation, texture processing (greyscale, edge detection)
+- `scripts/` - Repo scripts (`pandora.sh`)
+
+## Code Style
+
+### Naming Conventions
+
+| Element | Convention | Example |
+|---------|------------|---------|
+| Classes/Structs | PascalCase | `Sector`, `CameraSystem` |
+| Functions/Methods | PascalCase | `Initialize()`, `GetSector()` |
+| Member variables | `m_` prefix | `m_ShowDebug` |
+| Member pointers | `m_p` prefix | `m_pCamera` |
+| Static variables | `s` prefix | `sShaderMap` |
+| Global pointers | `g_p` prefix | `g_pGame` |
+| Constants | `k` prefix | `kMaxShips` |
+
+### Header Files
+- Use `#pragma once`
+- Forward declare where possible
+- Include order: corresponding header → standard library → third-party → engine → local
+
+### Smart Pointers
+```cpp
+DECLARE_SMART_PTR(Sector);  // Generates: SectorSharedPtr, SectorWeakPtr, SectorUniquePtr
+```
+
+### Namespace
+```cpp
+namespace WingsOfSteel
+{
+    class MyClass { };
+} // namespace WingsOfSteel
+```
+
+### Error Handling
+```cpp
+Result<DeserializationError, std::string> result = TryDeserializeString(...);
+if (result.has_value()) { return result.value(); }
+
+Log::Info() << "Message";
+Log::Warning() << "Warning";
+Log::Error() << "Error: " << details;
+```
+
+### Platform-Specific Code
+```cpp
+#if defined(TARGET_PLATFORM_WEB)
+#elif defined(TARGET_PLATFORM_WINDOWS)
+#elif defined(TARGET_PLATFORM_LINUX)
+#endif
+```
+
 ## Architecture
 
-### Core Components
-The project follows a modular architecture with three main components:
+### ECS (EnTT-based)
+- Entities: `Scene::CreateEntity()`
+- Components: inherit `IComponent`, use `REGISTER_COMPONENT` macro
+- Systems: inherit `System`, implement `Initialize()` and `Update(float delta)`
 
-1. **Pandora** (`pandora/`) - Core engine library providing:
-   - Rendering system (WebGPU-based via Dawn)
-   - Resource management (textures, models, shaders, fonts)
-   - ImGui integration and window management
-   - Physics system (Bullet3), input system, VFS
-   - ECS-based scene management with Entity/Component system
+### Resource Loading (async)
+```cpp
+GetResourceSystem()->RequestResource("/path/resource.json",
+    [](ResourceSharedPtr pResource) { /* callback */ });
+```
 
-2. **Game** (`game/`) - Main game application:
-   - Space exploration game with sectors, ships, hyperscape navigation
-   - Ship builder with prefab system and hardpoint management
-   - Player controller, weapon systems, navigation systems
-   - Fleet management and encounter mechanics with card-based AI system
-   - Dynamic encounter system: loads random encounters from `/encounters/difficulty<n>/` directories
-   - Encounter deck system: tier-based card mechanics defining enemy waves and behavior
-
-3. **Dome** (`dome/`) - Geometry processing tool:
-   - Edge detection from textures, vertex simplification
-   - Mesh generation with Delaunay triangulation
-   - Texture processing pipeline (greyscale conversion, edge detection)
+### Global Accessors
+```cpp
+GetRenderSystem(), GetInputSystem(), GetResourceSystem(),
+GetVFS(), GetWindow(), GetActiveScene(), GetDebugRender()
+```
 
 ### Key Technologies
-- **Graphics**: WebGPU (Dawn), OpenGL fallback, ImGui for UI
-- **Physics**: Bullet3 for collision detection and physics simulation
-- **Math**: GLM for linear algebra operations
-- **Serialization**: nlohmann/json for configuration and data files
-- **Asset Loading**: tinygltf for 3D model loading, stb libraries for image processing
-- **Reflection**: magic_enum for compile-time enum reflection
-
-### Code Conventions
-- Namespace: `WingsOfSteel`
-- Smart pointer macros: `DECLARE_SMART_PTR(ClassName)` generates typedefs
-- Modern C++20 features used throughout
-- Header-only libraries preferred where possible
-
-### File Organization
-- `/src/` contains implementation files
-- `/assets/` contains game assets (models, textures, fonts, UI icons)
-- `/bin/` contains build outputs and data files
-- `/bin/data/core/encounters/difficulty<n>/` contains encounter definition JSON files
-- `/bin/data/core/entity_prefabs/` contains entity prefab definitions (ships, weapons, ammo)
-- Third-party dependencies in `pandora/ext/`
-
-## Development Notes
-- Compile commands generated automatically for clangd integration
-- Cross-platform support (Windows, Linux, Web via Emscripten)
-- Uses Ninja generator for builds
-- Physics and rendering systems are decoupled from game logic
+- **Graphics**: WebGPU — Dawn on native, browser WebGPU via Emscripten on web; ImGui for UI
+- **Physics**: Bullet3
+- **Math**: GLM
+- **Serialization**: nlohmann/json
+- **Asset Loading**: tinygltf for models, stb for images
+- **Reflection**: magic_enum
 
 ## Code Modification Guidelines
-- After you modify a code file, always build the game to ensure everything compiles.
-- There's a file modification bug in Claude Code. The workaround is: always use complete absolute Windows paths with drive letters and backslashes for ALL file operations.
+- After you modify a code file, build the game to ensure everything compiles — once the port to
+  the current Pandora is complete. Until then, the build is expected to fail.
