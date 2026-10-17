@@ -11,13 +11,6 @@
 	function formatDuration(totalSeconds: number): string {
 		return `${Math.floor(totalSeconds / 60)}m${totalSeconds % 60}s`;
 	}
-
-	// Release the mouse so the window can be interacted with.
-	$effect(() => {
-		if ($encounterResult) {
-			document.exitPointerLock();
-		}
-	});
 </script>
 
 {#if $encounterResult}

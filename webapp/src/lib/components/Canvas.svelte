@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { initializeCallbacks } from '$lib/stores/game';
+	import { initializeCallbacks, pointerLockWanted } from '$lib/stores/game';
 
 	interface EmscriptenModule {
 		print(...args: unknown[]): void;
@@ -65,9 +65,16 @@
 		document.body.appendChild(script);
 	});
 
+	// Release the mouse so UI can be interacted with.
+	$effect(() => {
+		if (!$pointerLockWanted) {
+			document.exitPointerLock();
+		}
+	});
+
 	function onMouseDown(e: MouseEvent) {
 		e.preventDefault();
-		if (document.pointerLockElement !== canvas) {
+		if ($pointerLockWanted && document.pointerLockElement !== canvas) {
 			canvas.requestPointerLock();
 		}
 	}
