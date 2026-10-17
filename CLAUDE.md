@@ -21,7 +21,11 @@ the game's call sites.
 Either run `pandora/scripts/setup_emscripten.sh` (and let CMake's FetchContent populate the rest
 on configure), or symlink it to an already-populated checkout, e.g.
 `ln -s ~/dev/apsis/pandora/ext pandora/ext` — in which case it is *shared*, so a dependency bump
-in either tree is seen by both.
+in either tree is seen by both. Configure cannot install emsdk itself: the web preset's toolchain
+file lives inside `ext/emsdk`.
+
+**`.env`** at the repo root (gitignored) holds `FORGE_AUTH_KEY_SECRET`, which `forge upload` needs;
+copy it from `~/dev/apsis/.env`. `build.sh` sources it if present.
 
 ### Pandora changes (git subtree)
 
@@ -40,7 +44,12 @@ commit if that's natural, on any branch. Sync with upstream via `./scripts/pando
   `Add pandora as a git subtree` commit: its `git-subtree-*` trailers stop `split` from treating
   early history (when `pandora/` was a plain directory) as pandora's.
 
-### Configure (run once or after CMakeLists.txt changes)
+### Preferred build entry point
+```bash
+./build.sh <platform> <build_type>   # platform: linux|windows|web, build_type: debug|release
+```
+
+### Configure manually (run once or after CMakeLists.txt changes)
 ```bash
 cmake --preset debug-linux     # Linux
 cmake --preset debug-windows   # Windows
@@ -54,16 +63,23 @@ cmake --build build/debug-windows --target setup_compile_commands game # Windows
 cmake --build build/debug-web --target setup_compile_commands game     # Web
 ```
 
-Targets: `game` (main executable), `pandora` (engine library).
+Targets: `game` (main executable), `pandora` (engine library). Builds copy the executable (native)
+or `game.html`/`.js`/`.wasm` (web) into `game/bin/`, which is the working directory to run from.
 
 ### Forge
 
-Forge is a Go CLI for the web asset pipeline, in `pandora/tools/forge/`. Prebuilt binaries live in
-`pandora/tools/forge/bin/forge-<os>-<arch>` (e.g. `forge-darwin-arm64`).
-- `forge manifest` — generate `game/bin/manifest.json` (gitignored; auto-runs during web builds)
-- `forge serve` — serve assets locally for development
-- `forge upload` — upload assets to Cloudflare R2
-- `forge package` — package everything for deployment
+Forge is a Go CLI for the asset pipeline, in `pandora/tools/forge/` (see its `README.md`). Prebuilt
+binaries live in `pandora/tools/forge/bin/forge-<os>-<arch>` (e.g. `forge-linux-amd64`).
+- `forge assets` — compile `game/assets/` into `game/bin/data/core/`, driven by `*.asset.json`
+  descriptors (PNG/JPG become KTX2). Runs on every build; cached.
+- `forge manifest` — hash `game/bin/data/core/` into `game/bin/manifest.json` (gitignored)
+- `forge upload` — upload the manifest's files to Cloudflare R2, keyed by content hash
+- `forge serve` — serve `game/bin/` on `http://127.0.0.1:8080/` for local web testing
+- `forge package` — manifest, upload and inject into `game.html` in one step
+
+Web builds run `manifest` and `upload` automatically, and the web game fetches its data from R2
+rather than from `game/bin/`, so a data change only reaches the web build once it is uploaded
+(which needs `.env`).
 
 `forge manifest` ships everything under `game/bin/data/core/`, so don't put documentation or other
 non-runtime files in that tree.
@@ -86,7 +102,9 @@ Format with clang-format (WebKit-based): `clang-format -i path/to/file.cpp`
   - Encounters are loaded at random from `game/bin/data/core/encounters/difficulty<n>/`; encounter
     decks are tier-based cards defining enemy waves and behaviour
   - Entity prefabs (ships, weapons, ammo) in `game/bin/data/core/entity_prefabs/`
-  - Assets (models, textures, fonts, UI icons) in `game/assets/`
+  - Runtime data (models, textures, shaders, UI icons) in `game/bin/data/core/`, loaded through
+    the VFS as `/path`. Source assets live in `game/assets/`; Knight-One has no `*.asset.json`
+    descriptors yet, so its data is still committed directly rather than compiled by Forge
 - `scripts/` - Repo scripts (`pandora.sh`)
 
 ## Code Style
@@ -152,6 +170,18 @@ GetResourceSystem()->RequestResource("/path/resource.json",
     [](ResourceSharedPtr pResource) { /* callback */ });
 ```
 
+### Rendering
+The frame is a list of `Pass`es (`pandora/src/render/pass/`), registered in `Game::Initialize()`
+with `GetRenderSystem()->AddPass()` and run in order via `Execute(wgpu::CommandEncoder&)`:
+1. `BaseRenderPass` renders the scene in linear HDR into the window's scene texture
+   (`Window::GetSceneFormat()`, RGBA16Float). Scene shaders must output linear colour.
+2. Game passes that need the scene's depth but must stay out of tonemapping (e.g.
+   `ThreatIndicatorRenderPass`) draw into the overlay (`GetOverlayMsaaColorTexture()`, surface
+   format, premultiplied) with a read-only depth attachment.
+3. `PresentPass` applies bloom, exposure and tonemapping, encodes to the surface and composites
+   the overlay.
+4. `UIRenderPass` draws ImGui and debug rendering straight onto the surface.
+
 ### Global Accessors
 ```cpp
 GetRenderSystem(), GetInputSystem(), GetResourceSystem(),
@@ -163,8 +193,10 @@ GetVFS(), GetWindow(), GetActiveScene(), GetDebugRender()
 - **Physics**: Bullet3
 - **Math**: GLM
 - **Serialization**: nlohmann/json
-- **Asset Loading**: tinygltf for models, stb for images
+- **Asset Loading**: tinygltf for models, KTX2 (KTX-Software) and stb for images
 - **Reflection**: magic_enum
+- **Assertions**: `PANDORA_ASSERT(expr) << "context"` (compiled out in release) and
+  `PANDORA_VERIFY` (always evaluated, always aborts on failure), in `core/assert.hpp`
 
 ## Code Modification Guidelines
 - After you modify a code file, build the game to ensure everything compiles (`./build.sh <platform>
