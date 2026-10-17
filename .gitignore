@@ -14,3 +14,6 @@ game/bin/log.txt
 game/bin/manifest.json
 compile_commands.json
 *.blend?
+webapp/build/
+webapp/static/game.js
+webapp/static/game.wasm

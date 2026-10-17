@@ -15,17 +15,23 @@ the game's call sites.
 
 ## Build Commands
 
-### First-time setup
+### First-time setup (per worktree — do this automatically before the first build)
 
-**`pandora/ext/`** (emsdk + FetchContent deps, ~4 GB) is gitignored and not part of the subtree.
-Either run `pandora/scripts/setup_emscripten.sh` (and let CMake's FetchContent populate the rest
-on configure), or symlink it to an already-populated checkout, e.g.
-`ln -s ~/dev/apsis/pandora/ext pandora/ext` — in which case it is *shared*, so a dependency bump
-in either tree is seen by both. Configure cannot install emsdk itself: the web preset's toolchain
-file lives inside `ext/emsdk`.
+We develop in git worktrees under `~/.herdr/worktrees/KnightOne/<branch>`. A fresh worktree is
+missing gitignored build prerequisites that are NOT carried across from `main`.
+**Before the first build in a worktree, run `./scripts/worktree-setup.sh` without asking.**
+It is idempotent (creates only what's absent, borrowing from the canonical checkout at
+`~/dev/KnightOne`, overridable via `KNIGHTONE_MAIN_CHECKOUT`) and safe to re-run. It handles:
 
-**`.env`** at the repo root (gitignored) holds `FORGE_AUTH_KEY_SECRET`, which `forge upload` needs;
-copy it from `~/dev/apsis/.env`. `build.sh` sources it if present.
+1. **`pandora/ext/`** (emsdk + FetchContent deps, ~4 GB, gitignored, not part of the subtree) —
+   symlinked to the canonical checkout's populated `ext/`. It is therefore *shared*, so a
+   dependency bump in either tree is seen by both. Without it, configuring fails with
+   `Could not find toolchain file: ".../Emscripten.cmake"`. If the canonical checkout has none,
+   run `pandora/scripts/setup_emscripten.sh` (CMake's FetchContent populates the rest).
+2. **`.env`** at the repo root (holds `FORGE_AUTH_KEY_SECRET` for `forge upload`, gitignored) —
+   copied from the canonical checkout.
+
+After this, `./build.sh <linux|windows|web> <debug|release>` works.
 
 ### Pandora changes (git subtree)
 
@@ -63,8 +69,21 @@ cmake --build build/debug-windows --target setup_compile_commands game # Windows
 cmake --build build/debug-web --target setup_compile_commands game     # Web
 ```
 
-Targets: `game` (main executable), `pandora` (engine library). Builds copy the executable (native)
-or `game.html`/`.js`/`.wasm` (web) into `game/bin/`, which is the working directory to run from.
+Targets: `game` (main executable), `pandora` (engine library). Native builds copy the executable
+into `game/bin/`, which is the working directory to run from; web builds copy `game.js` and
+`game.wasm` into `webapp/static/` (see below).
+
+### Webapp (SvelteKit)
+
+On web, the page is the SvelteKit app in `webapp/`, not an Emscripten shell. The web build copies
+`game.js` and `game.wasm` into `webapp/static/` (gitignored), which the `Canvas` component loads.
+```bash
+cd webapp
+npm install
+npm run dev          # Development server on http://localhost:6174
+npm run check        # Type-check
+npm run build        # Production build into webapp/build/
+```
 
 ### Forge
 
@@ -74,8 +93,9 @@ binaries live in `pandora/tools/forge/bin/forge-<os>-<arch>` (e.g. `forge-linux-
   descriptors (PNG/JPG become KTX2). Runs on every build; cached.
 - `forge manifest` — hash `game/bin/data/core/` into `game/bin/manifest.json` (gitignored)
 - `forge upload` — upload the manifest's files to Cloudflare R2, keyed by content hash
-- `forge serve` — serve `game/bin/` on `http://127.0.0.1:8080/` for local web testing
-- `forge package` — manifest, upload and inject into `game.html` in one step
+- `forge serve` — serve `game/bin/` on `http://127.0.0.1:8080/`
+- `forge package` — manifest, upload and inject into `game.html` in one step (Knight-One no longer
+  has a `game.html`: the page is the SvelteKit app)
 
 Web builds run `manifest` and `upload` automatically, and the web game fetches its data from R2
 rather than from `game/bin/`, so a data change only reaches the web build once it is uploaded
@@ -105,6 +125,7 @@ Format with clang-format (WebKit-based): `clang-format -i path/to/file.cpp`
   - Runtime data (models, textures, shaders, UI icons) in `game/bin/data/core/`, loaded through
     the VFS as `/path`. Source assets live in `game/assets/`; Knight-One has no `*.asset.json`
     descriptors yet, so its data is still committed directly rather than compiled by Forge
+- `webapp/` - SvelteKit + TypeScript frontend for the web build
 - `scripts/` - Repo scripts (`pandora.sh`)
 
 ## Code Style

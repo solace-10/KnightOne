@@ -9,13 +9,12 @@
 #include <vfs/vfs.hpp>
 
 #include "components/hull_component.hpp"
+#include "emscripten/web_interop.hpp"
 #include "entity_builder/entity_builder.hpp"
 #include "game.hpp"
 #include "sector/deck/deck.hpp"
-#include "sector/defeat_window.hpp"
 #include "sector/encounter.hpp"
 #include "sector/sector.hpp"
-#include "sector/victory_window.hpp"
 
 namespace WingsOfSteel
 {
@@ -82,17 +81,6 @@ void Encounter::Initialize(SectorSharedPtr pSector)
 
             SpawnCarrier();
 
-            m_pVictoryWindow = std::make_shared<VictoryWindow>();
-            m_pVictoryWindow->Initialize("/ui/prefabs/victory.json");
-            m_pVictoryWindow->AddFlag(UI::Element::Flags::Hidden);
-
-            GetEncounterResolvedSignal().Connect([this](EncounterResult encounterResult) {
-                if (encounterResult == EncounterResult::Victory)
-                {
-                    m_pVictoryWindow->RemoveFlag(UI::Element::Flags::Hidden);
-                }
-            });
-
             m_OnEntityKilled = pSector->GetEntityKilledSignal().ConnectMember(this, &Encounter::OnEntityKilled);
         }
     });
@@ -140,16 +128,6 @@ void Encounter::Update(float delta)
 
     EvaluateEscalation();
     EvaluateEncounterResult();
-
-    if (m_pVictoryWindow)
-    {
-        m_pVictoryWindow->Render();
-    }
-
-    if (m_pDefeatWindow)
-    {
-        m_pDefeatWindow->Render();
-    }
 
     DrawDebugUI();
 }
@@ -247,6 +225,9 @@ void Encounter::EvaluateEncounterResult()
     if (m_EncounterResult != EncounterResult::Undecided)
     {
         m_EncounterStats.finishedAt = std::chrono::steady_clock::now();
+#if defined(TARGET_PLATFORM_WEB)
+        WebInterop::NotifyEncounterResolved(m_EncounterResult, m_EncounterStats);
+#endif
         m_EncounterResolvedSignal.Emit(m_EncounterResult);
         m_EncounterResolvedSignal.DisconnectAll();
     }

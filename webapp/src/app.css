@@ -1,0 +1,11 @@
+@font-face {
+	font-family: 'Supply Mono';
+	src: url('../../game/assets/fonts/SupplyMono/PPSupplyMono-Regular.otf') format('opentype');
+	font-weight: 400;
+}
+
+@font-face {
+	font-family: 'Supply Mono';
+	src: url('../../game/assets/fonts/SupplyMono/PPSupplyMono-Semibold.otf') format('opentype');
+	font-weight: 600;
+}
