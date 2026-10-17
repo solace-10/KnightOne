@@ -130,6 +130,19 @@ void Sector::DrawCameraDebugUI()
 
     ImGui::Checkbox("Debug Draw", &sectorCameraComponent.debugDraw);
 
+    CameraSystem* pCameraSystem = GetSystem<CameraSystem>();
+    bool freeCamera = pCameraSystem->IsFreeCameraEnabled();
+    if (ImGui::Checkbox("Free camera", &freeCamera))
+    {
+        pCameraSystem->SetFreeCameraEnabled(freeCamera);
+    }
+    float freeCameraSpeed = pCameraSystem->GetFreeCameraSpeed();
+    if (ImGui::SliderFloat("Free camera speed", &freeCameraSpeed, 1.0f, 500.0f))
+    {
+        pCameraSystem->SetFreeCameraSpeed(freeCameraSpeed);
+    }
+    ImGui::TextDisabled("WASD to move, Shift to go faster, hold right mouse to look.");
+
     const glm::vec3& position = sectorCameraComponent.position;
     float fposition[3] = { position.x, position.y, position.z };
     if (ImGui::InputFloat3("Eye", fposition))
