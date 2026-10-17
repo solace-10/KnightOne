@@ -61,7 +61,7 @@ void PrefabEditor::DrawPrefabEditor()
     }
     ImGui::EndDisabled();
 
-    ImGui::BeginChild("PrefabList", ImVec2(300, 0), ImGuiChildFlags_Border);
+    ImGui::BeginChild("PrefabList", ImVec2(300, 0), ImGuiChildFlags_Borders);
     for (const auto& registeredPrefab : m_RegisteredPrefabs)
     {
         WindowSharedPtr pWindow = registeredPrefab.pWindow.lock();
@@ -85,7 +85,7 @@ void PrefabEditor::DrawPrefabEditor()
 
 void PrefabEditor::RenderHierarchy()
 {
-    ImGui::BeginChild("Hierarchy", ImVec2(500, 0), ImGuiChildFlags_Border);
+    ImGui::BeginChild("Hierarchy", ImVec2(500, 0), ImGuiChildFlags_Borders);
 
     if (m_pSelectedPrefab.has_value())
     {
@@ -279,7 +279,7 @@ void PrefabEditor::CopyPath(Element* pElement)
 
 void PrefabEditor::RenderProperties()
 {
-    ImGui::BeginChild("Properties", ImVec2(0, 0), ImGuiChildFlags_Border);
+    ImGui::BeginChild("Properties", ImVec2(0, 0), ImGuiChildFlags_Borders);
     ElementSharedPtr pSelectedElement = m_pSelectedElement.lock();
     if (pSelectedElement)
     {

@@ -21,7 +21,7 @@ namespace WingsOfSteel
 {
 
 ThreatIndicatorRenderPass::ThreatIndicatorRenderPass()
-: RenderPass("Threat indicator render pass")
+: Pass("Threat indicator render pass")
 {
     // Load the debug shader
     GetResourceSystem()->RequestResource("/shaders/vertex_color_texture.wgsl", [this](ResourceSharedPtr pResource) {
@@ -50,7 +50,7 @@ void ThreatIndicatorRenderPass::CreateRenderPipeline()
 
     wgpu::BlendState blendState = m_pChevronMaterial->GetBlendState();
     wgpu::ColorTargetState colorTargetState{
-        .format = GetWindow()->GetTextureFormat(),
+        .format = GetWindow()->GetSurfaceFormat(),
         .blend = &blendState
     };
 
@@ -71,10 +71,10 @@ void ThreatIndicatorRenderPass::CreateRenderPipeline()
     };
     wgpu::PipelineLayout pipelineLayout = GetRenderSystem()->GetDevice().CreatePipelineLayout(&pipelineLayoutDescriptor);
 
-    // Depth state
+    // Depth state. The overlay pass's depth attachment is read-only.
     wgpu::DepthStencilState depthState{
         .format = wgpu::TextureFormat::Depth32Float,
-        .depthWriteEnabled = true,
+        .depthWriteEnabled = false,
         .depthCompare = wgpu::CompareFunction::Less
     };
 
@@ -100,24 +100,23 @@ void ThreatIndicatorRenderPass::CreateRenderPipeline()
     m_RenderPipeline = GetRenderSystem()->GetDevice().CreateRenderPipeline(&descriptor);
 }
 
-void ThreatIndicatorRenderPass::Render(wgpu::CommandEncoder& encoder)
+// Drawn into the window's overlay, so the indicators are hidden by the scene's depth but are kept
+// out of tonemapping. PresentPass composites the overlay over the scene.
+void ThreatIndicatorRenderPass::Execute(wgpu::CommandEncoder& encoder)
 {
-    wgpu::SurfaceTexture surfaceTexture;
-    GetWindow()->GetSurface().GetCurrentTexture(&surfaceTexture);
-
     wgpu::RenderPassColorAttachment colorAttachment{
-        .view = GetWindow()->GetMsaaColorTexture().GetTextureView(),
-        .resolveTarget = surfaceTexture.texture.CreateView(),
-        .loadOp = wgpu::LoadOp::Load,
+        .view = GetWindow()->GetOverlayMsaaColorTexture().GetTextureView(),
+        .resolveTarget = GetWindow()->GetOverlayColorTexture().GetTextureView(),
+        .loadOp = wgpu::LoadOp::Clear,
         .storeOp = wgpu::StoreOp::Store,
-        .clearValue = wgpu::Color{ 0.0, 0.0, 0.0, 1.0 }
+        .clearValue = wgpu::Color{ 0.0, 0.0, 0.0, 0.0 }
     };
 
     wgpu::RenderPassDepthStencilAttachment depthAttachment{
         .view = GetWindow()->GetDepthTexture().GetTextureView(),
-        .depthLoadOp = wgpu::LoadOp::Load,
-        .depthStoreOp = wgpu::StoreOp::Store,
-        .depthClearValue = 1.0f
+        // Unused by a read-only attachment, but the default is NaN, which browsers reject outright.
+        .depthClearValue = 1.0f,
+        .depthReadOnly = true
     };
 
     wgpu::RenderPassDescriptor renderpass{

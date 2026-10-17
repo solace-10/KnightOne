@@ -29,7 +29,6 @@ void Panel::Render()
 
     static const ImU32 accentColor = Theme::AccentColor;
     static const ImU32 backgroundStartColor = IM_COL32(46, 46, 46, 180);
-    static const ImU32 backgroundEndColor = IM_COL32(20, 20, 20, 180);
     static const float notchSize = 16.0f;
     ImDrawList* pDrawList = ImGui::GetWindowDrawList();
 
@@ -40,13 +39,7 @@ void Panel::Render()
     background[ 3 ] = ImVec2(cp1.x - notchSize, cp1.y);
     background[ 4 ] = ImVec2(cp0.x, cp1.y);
 
-    std::array<ImU32, 5> backgroundColors;
-    backgroundColors[ 0 ] = backgroundStartColor;
-    backgroundColors[ 1 ] = backgroundStartColor;
-    backgroundColors[ 2 ] = backgroundEndColor;
-    backgroundColors[ 3 ] = backgroundEndColor;
-    backgroundColors[ 4 ] = backgroundEndColor;
-    pDrawList->AddConvexPolyFilledMultiColor(background.data(), backgroundColors.data(), static_cast<int>(background.size()));
+    pDrawList->AddConvexPolyFilled(background.data(), static_cast<int>(background.size()), backgroundStartColor);
 
     const float accentHeight = 4.0f;
     pDrawList->AddRectFilled(ImVec2(cp0.x, cp0.y), ImVec2(cp1.x, cp0.y + accentHeight), accentColor);

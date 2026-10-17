@@ -76,7 +76,8 @@ void Sector::Initialize()
     AddSystem<DebugRenderSystem>();
 
     m_pCamera = CreateEntity();
-    m_pCamera->AddComponent<CameraComponent>(70.0f, 1.0f, 5000.0f);
+    // The sector was framed when the engine took this as radians, so 70 gave ~50.7 degrees.
+    m_pCamera->AddComponent<CameraComponent>(50.7f, 1.0f, 5000.0f);
 
     SectorCameraComponent& sectorCameraComponent = m_pCamera->AddComponent<SectorCameraComponent>();
     sectorCameraComponent.position = glm::vec3(0.0f, 45.0f, 30.0f);

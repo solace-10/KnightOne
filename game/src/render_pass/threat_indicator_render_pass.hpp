@@ -1,7 +1,7 @@
 #pragma once
 
 #include "resources/resource.fwd.hpp"
-#include <render/render_pass/render_pass.hpp>
+#include <render/pass/pass.hpp>
 #include <render/material.hpp>
 #include <resources/resource_texture_2d.hpp>
 #include <resources/resource_shader.hpp>
@@ -12,12 +12,12 @@ namespace WingsOfSteel
 {
 
 DECLARE_SMART_PTR(ThreatIndicatorRenderPass);
-class ThreatIndicatorRenderPass : public RenderPass
+class ThreatIndicatorRenderPass : public Pass
 {
 public:
     ThreatIndicatorRenderPass();
 
-    void Render(wgpu::CommandEncoder& encoder) override;
+    void Execute(wgpu::CommandEncoder& encoder) override;
 
 private:
     void CreateRenderPipeline();
