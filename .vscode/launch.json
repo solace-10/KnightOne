@@ -24,21 +24,6 @@
             "MIMode": "gdb"
         },
         {
-            "name": "Launch Dome (Windows)",
-            "type":"cppvsdbg",
-            "request":"launch",
-            "program": "${workspaceRoot}/dome/bin/dome.exe",
-            "cwd":"${workspaceRoot}/dome/bin"
-        },
-        {
-            "name": "Launch Dome (Linux)",
-            "type":"cppdbg",
-            "request":"launch",
-            "program": "${workspaceRoot}/dome/bin/dome",
-            "cwd":"${workspaceRoot}/dome/bin",
-            "MIMode": "gdb"
-        },
-        {
             "name": "Launch Forge (Windows)",
             "type":"cppvsdbg",
             "request":"launch",

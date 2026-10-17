@@ -6,7 +6,6 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/pandora/src/**",
                 "${workspaceFolder}/game/src/**",
-                "${workspaceFolder}/dome/src/**",
                 "${workspaceFolder}/forge/src/**"
             ],
             "defines": [],

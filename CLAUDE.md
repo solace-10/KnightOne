@@ -5,13 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Knight-One (Wings of Steel) is a space combat demo built as a C++20 CMake project on Pandora, a
-custom engine shared with other projects (e.g. Apsis). It consists of the engine (`pandora/`), the
-game (`game/`) and a geometry processing tool (`dome/`).
+custom engine shared with other projects (e.g. Apsis). It consists of the engine (`pandora/`) and the
+game (`game/`).
 
-**Port in progress:** Knight-One was written against an old version of Pandora. `pandora/` has
-since been replaced with the current engine, and `game/` and `dome/` have not yet been ported to
-it, so the project does not currently build. Expect engine APIs used by the game to have been
-renamed, moved or removed; use `pandora/src/` as the source of truth, not the game's call sites.
+**Port in progress:** Knight-One was written against an old version of Pandora and has been ported
+to the current engine far enough to build on Linux and web, but has not yet been verified at
+runtime. Where the game and the engine disagree, use `pandora/src/` as the source of truth, not
+the game's call sites.
 
 ## Build Commands
 
@@ -49,12 +49,12 @@ cmake --preset debug-web       # Web (Emscripten)
 
 ### Build
 ```bash
-cmake --build build/debug-linux --target setup_compile_commands game dome   # Linux
-cmake --build build/debug-windows --target setup_compile_commands game dome # Windows
-cmake --build build/debug-web --target setup_compile_commands game          # Web
+cmake --build build/debug-linux --target setup_compile_commands game   # Linux
+cmake --build build/debug-windows --target setup_compile_commands game # Windows
+cmake --build build/debug-web --target setup_compile_commands game     # Web
 ```
 
-Targets: `game` (main executable), `dome` (geometry tool), `pandora` (engine library).
+Targets: `game` (main executable), `pandora` (engine library).
 
 ### Forge
 
@@ -87,8 +87,6 @@ Format with clang-format (WebKit-based): `clang-format -i path/to/file.cpp`
     decks are tier-based cards defining enemy waves and behaviour
   - Entity prefabs (ships, weapons, ammo) in `game/bin/data/core/entity_prefabs/`
   - Assets (models, textures, fonts, UI icons) in `game/assets/`
-- `dome/` - Geometry processing tool: edge detection from textures, vertex simplification, mesh
-  generation with Delaunay triangulation, texture processing (greyscale, edge detection)
 - `scripts/` - Repo scripts (`pandora.sh`)
 
 ## Code Style
@@ -169,5 +167,5 @@ GetVFS(), GetWindow(), GetActiveScene(), GetDebugRender()
 - **Reflection**: magic_enum
 
 ## Code Modification Guidelines
-- After you modify a code file, build the game to ensure everything compiles — once the port to
-  the current Pandora is complete. Until then, the build is expected to fail.
+- After you modify a code file, build the game to ensure everything compiles (`./build.sh <platform>
+  <debug|release>`, platform being `linux`, `windows` or `web`).

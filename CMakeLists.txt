@@ -31,5 +31,4 @@ else()
 endif()
 
 add_subdirectory("pandora")
-add_subdirectory("dome")
 add_subdirectory("game")
