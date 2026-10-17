@@ -24,6 +24,7 @@ public:
     static Game* Get();
 
 private:
+    void ShowDebugUI(bool state);
     void DrawImGuiMenuBar();
 
     SceneSharedPtr m_pMenuScene;
