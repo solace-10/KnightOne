@@ -1,5 +1,7 @@
 <script lang="ts">
+	import '../app.css';
 	import Canvas from '$lib/components/Canvas.svelte';
+	import EncounterResultWindow from '$lib/components/EncounterResultWindow.svelte';
 </script>
 
 <svelte:head>
@@ -8,6 +10,7 @@
 
 <main class="app">
 	<Canvas />
+	<EncounterResultWindow />
 </main>
 
 <style>

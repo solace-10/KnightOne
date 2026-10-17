@@ -15,9 +15,7 @@
 namespace WingsOfSteel
 {
 
-DECLARE_SMART_PTR(DefeatWindow);
 DECLARE_SMART_PTR(Sector);
-DECLARE_SMART_PTR(VictoryWindow);
 
 enum class EncounterResult
 {
@@ -71,9 +69,6 @@ private:
 
     Signal<EncounterResult> m_EncounterResolvedSignal;
     SignalId m_OnEntityKilled{ InvalidSignalId };
-
-    VictoryWindowSharedPtr m_pVictoryWindow;
-    DefeatWindowSharedPtr m_pDefeatWindow;
 };
 
 } // namespace WingsOfSteel

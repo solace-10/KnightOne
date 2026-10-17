@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { initializeCallbacks } from '$lib/stores/game';
 
 	interface EmscriptenModule {
 		print(...args: unknown[]): void;
@@ -16,6 +17,9 @@
 	let failed = $state(false);
 
 	onMount(() => {
+		// C++ -> JS callbacks must exist before the WASM module loads.
+		initializeCallbacks();
+
 		let lastStatus = { time: Date.now(), text: '' };
 
 		// The global Module object that the Emscripten-generated game.js picks up.
