@@ -15,13 +15,23 @@ renamed, moved or removed; use `pandora/src/` as the source of truth, not the ga
 
 ## Build Commands
 
-### First-time setup
+### First-time setup (per worktree — do this automatically before the first build)
 
-**`pandora/ext/`** (emsdk + FetchContent deps, ~4 GB) is gitignored and not part of the subtree.
-Either run `pandora/scripts/setup_emscripten.sh` (and let CMake's FetchContent populate the rest
-on configure), or symlink it to an already-populated checkout, e.g.
-`ln -s ~/dev/apsis/pandora/ext pandora/ext` — in which case it is *shared*, so a dependency bump
-in either tree is seen by both.
+We develop in git worktrees under `~/.herdr/worktrees/KnightOne/<branch>`. A fresh worktree is
+missing gitignored build prerequisites that are NOT carried across from `main`.
+**Before the first build in a worktree, run `./scripts/worktree-setup.sh` without asking.**
+It is idempotent (creates only what's absent, borrowing from the canonical checkout at
+`~/dev/KnightOne`, overridable via `KNIGHTONE_MAIN_CHECKOUT`) and safe to re-run. It handles:
+
+1. **`pandora/ext/`** (emsdk + FetchContent deps, ~4 GB, gitignored, not part of the subtree) —
+   symlinked to the canonical checkout's populated `ext/`. It is therefore *shared*, so a
+   dependency bump in either tree is seen by both. Without it, configuring fails with
+   `Could not find toolchain file: ".../Emscripten.cmake"`. If the canonical checkout has none,
+   run `pandora/scripts/setup_emscripten.sh` (CMake's FetchContent populates the rest).
+2. **`.env`** at the repo root (holds `FORGE_AUTH_KEY_SECRET` for `forge upload`, gitignored) —
+   copied from the canonical checkout.
+
+After this, `./build.sh <linux|windows|web> <debug|release>` works.
 
 ### Pandora changes (git subtree)
 
@@ -56,6 +66,18 @@ cmake --build build/debug-web --target setup_compile_commands game          # We
 
 Targets: `game` (main executable), `dome` (geometry tool), `pandora` (engine library).
 
+### Webapp (SvelteKit)
+
+On web, the page is the SvelteKit app in `webapp/`, not an Emscripten shell. The web build copies
+`game.js` and `game.wasm` into `webapp/static/` (gitignored), which the `Canvas` component loads.
+```bash
+cd webapp
+npm install
+npm run dev          # Development server on http://localhost:6174
+npm run check        # Type-check
+npm run build        # Production build into webapp/build/
+```
+
 ### Forge
 
 Forge is a Go CLI for the web asset pipeline, in `pandora/tools/forge/`. Prebuilt binaries live in
@@ -89,6 +111,7 @@ Format with clang-format (WebKit-based): `clang-format -i path/to/file.cpp`
   - Assets (models, textures, fonts, UI icons) in `game/assets/`
 - `dome/` - Geometry processing tool: edge detection from textures, vertex simplification, mesh
   generation with Delaunay triangulation, texture processing (greyscale, edge detection)
+- `webapp/` - SvelteKit + TypeScript frontend for the web build
 - `scripts/` - Repo scripts (`pandora.sh`)
 
 ## Code Style

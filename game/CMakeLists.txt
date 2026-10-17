@@ -24,15 +24,14 @@ if(TARGET_PLATFORM_NATIVE)
     )
 elseif(TARGET_PLATFORM_WEB)
     target_link_options(game PRIVATE
-        "--shell-file=${CMAKE_CURRENT_SOURCE_DIR}/src/emscripten/shell.html"
+        "--bind" # Support for embind so we can interact with the frontend.
     )
 
-    set_target_properties(game PROPERTIES
-        SUFFIX ".html"
-    )
+    # The page itself is the SvelteKit app in webapp/, which loads game.js from its static/ folder.
+    set(WEBAPP_STATIC_DIR "${CMAKE_CURRENT_LIST_DIR}/../webapp/static")
     add_custom_command(TARGET game POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:game>/$<TARGET_FILE_BASE_NAME:game>.html ${CMAKE_CURRENT_LIST_DIR}/bin
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:game>/$<TARGET_FILE_BASE_NAME:game>.js ${CMAKE_CURRENT_LIST_DIR}/bin
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:game>/$<TARGET_FILE_BASE_NAME:game>.wasm ${CMAKE_CURRENT_LIST_DIR}/bin
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${WEBAPP_STATIC_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:game>/$<TARGET_FILE_BASE_NAME:game>.js ${WEBAPP_STATIC_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:game>/$<TARGET_FILE_BASE_NAME:game>.wasm ${WEBAPP_STATIC_DIR}
     )
 endif()
