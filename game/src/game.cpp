@@ -15,7 +15,6 @@
 #include "game.hpp"
 #include "sector/encounter.hpp"
 #include "sector/sector.hpp"
-#include "ui/prefab_editor.hpp"
 #include "systems/ai_strategic_system.hpp"
 #include "render_pass/threat_indicator_render_pass.hpp"
 
@@ -54,8 +53,6 @@ void Game::Initialize()
     GetInputSystem()->SetCursorMode(CursorMode::Locked);
 #elif defined(TARGET_PLATFORM_NATIVE)
     GetInputSystem()->SetCursorMode(CursorMode::Normal);
-    m_pPrefabEditor = std::make_unique<UI::PrefabEditor>();
-    m_pPrefabEditor->Initialize();
 #endif
 
     m_pSector = std::make_shared<Sector>();
@@ -66,9 +63,6 @@ void Game::Initialize()
 
 void Game::Update(float delta)
 {
-#if defined(TARGET_PLATFORM_NATIVE)
-    m_pPrefabEditor->DrawPrefabEditor();
-#endif
 }
 
 void Game::Shutdown()
@@ -181,18 +175,6 @@ void Game::DrawImGuiMenuBar()
             }
             ImGui::EndMenu();
         }
-    }
-
-    if (ImGui::BeginMenu("UI"))
-    {
-#if defined(TARGET_PLATFORM_NATIVE)
-        static bool sShowPrefabEditor = false;
-        if (ImGui::MenuItem("Prefab Editor", nullptr, &sShowPrefabEditor))
-        {
-            m_pPrefabEditor->ShowPrefabEditor(sShowPrefabEditor);
-        }
-#endif
-        ImGui::EndMenu();
     }
 }
 
