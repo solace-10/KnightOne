@@ -126,6 +126,31 @@ fn geometrySmith(N: vec3f, V: vec3f, L: vec3f, roughness: f32) -> f32
     return ggx1 * ggx2;
 }
 
+// The ambient light reflected by a white Lambertian surface facing n. See AmbientSH in
+// lighting_system.hpp for the basis order. Clamped, as bright spots on the sky make the SH ring
+// below zero on the far side.
+fn ambientSH(n: vec3f) -> vec3f
+{
+    let sh = uGlobalUniforms.ambientSH;
+    let c = 0.282095 * sh[0].rgb
+        + 0.488603 * (n.y * sh[1].rgb + n.z * sh[2].rgb + n.x * sh[3].rgb)
+        + 1.092548 * (n.x * n.y * sh[4].rgb + n.y * n.z * sh[5].rgb + n.x * n.z * sh[7].rgb)
+        + 0.315392 * (3.0 * n.z * n.z - 1.0) * sh[6].rgb
+        + 0.546274 * (n.x * n.x - n.y * n.y) * sh[8].rgb;
+    return max(c, vec3f(0.0));
+}
+
+// Karis' analytic fit to the split-sum environment BRDF, from "Physically Based Shading on Mobile".
+fn environmentBRDF(F0: vec3f, roughness: f32, NdotV: f32) -> vec3f
+{
+    let c0 = vec4f(-1.0, -0.0275, -0.572, 0.022);
+    let c1 = vec4f(1.0, 0.0425, 1.04, -0.04);
+    let r = roughness * c0 + c1;
+    let a004 = min(r.x * r.x, exp2(-9.28 * NdotV)) * r.x + r.y;
+    let AB = vec2f(-1.04, 1.04) * a004 + r.zw;
+    return F0 * AB.x + AB.y;
+}
+
 @fragment fn fragmentMain(in: VertexOutput) -> @location(0) vec4f
 {
     // All textures will already be in linear space: base color and emissive
@@ -183,8 +208,13 @@ fn geometrySmith(N: vec3f, V: vec3f, L: vec3f, roughness: f32) -> f32
     let lightColor = uGlobalUniforms.directionalLightColor.rgb;
     let Lo = (diffuse + specular) * lightColor * NdotL;
 
-    // Ambient lighting with occlusion
-    let ambient = uGlobalUniforms.ambientLightColor.rgb * baseColor * ao;
+    // Ambient lighting with occlusion. The specular half reads the SH in the reflection direction,
+    // which is only as sharp as the SH are, so glossy surfaces reflect a very blurred sky.
+    // ponytail: cheap ambient specular; a GGX-prefiltered cubemap (split-sum IBL) once glossy metals need it.
+    let ambientSpecular = environmentBRDF(F0, roughness, NdotV);
+    let ambientDiffuse = (vec3f(1.0) - ambientSpecular) * (1.0 - metallic) * baseColor;
+    let R = reflect(-V, N);
+    let ambient = (ambientDiffuse * ambientSH(N) + ambientSpecular * ambientSH(R)) * ao;
 
     // Final color: ambient + direct lighting + emissive
     let color = ambient + Lo + emissive;

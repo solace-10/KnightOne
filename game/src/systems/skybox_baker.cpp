@@ -1,8 +1,12 @@
 #include "systems/skybox_baker.hpp"
 
+#include <array>
+
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <core/log.hpp>
 #include <pandora.hpp>
 #include <render/rendersystem.hpp>
 #include <resources/resource_system.hpp>
@@ -36,20 +40,46 @@ SkyboxBaker::SkyboxBaker()
         .usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
         .size = sizeof(BakeUniforms)
     };
-    m_UniformsBuffer = GetRenderSystem()->GetDevice().CreateBuffer(&bufferDescriptor);
+    wgpu::Device device = GetRenderSystem()->GetDevice();
+    m_UniformsBuffer = device.CreateBuffer(&bufferDescriptor);
+
+    wgpu::BufferDescriptor partialsBufferDescriptor{
+        .label = "Skybox SH partials buffer",
+        .usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopySrc,
+        .size = kSHPartialsSize
+    };
+    m_SHPartialsBuffer = device.CreateBuffer(&partialsBufferDescriptor);
+
+    // MapRead may only be paired with CopyDst, hence the copy out of the partials buffer.
+    m_pReadback = std::make_shared<Readback>();
+    wgpu::BufferDescriptor readbackBufferDescriptor{
+        .label = "Skybox SH readback buffer",
+        .usage = wgpu::BufferUsage::MapRead | wgpu::BufferUsage::CopyDst,
+        .size = kSHPartialsSize
+    };
+    m_pReadback->buffer = device.CreateBuffer(&readbackBufferDescriptor);
 
     GetResourceSystem()->RequestResource("/shaders/skybox_bake.wgsl", [this](ResourceSharedPtr pResource) {
         m_pShader = std::dynamic_pointer_cast<ResourceShader>(pResource);
         CreatePipeline();
-
-        m_ShaderInjectionSignalId = GetResourceSystem()->GetShaderInjectedSignal().Connect(
-            [this](ResourceShader* pResourceShader) {
-                if (pResourceShader == m_pShader.get())
-                {
-                    CreatePipeline();
-                }
-            });
     });
+
+    GetResourceSystem()->RequestResource("/shaders/skybox_sh.wgsl", [this](ResourceSharedPtr pResource) {
+        m_pSHShader = std::dynamic_pointer_cast<ResourceShader>(pResource);
+        CreateSHPipeline();
+    });
+
+    m_ShaderInjectionSignalId = GetResourceSystem()->GetShaderInjectedSignal().Connect(
+        [this](ResourceShader* pResourceShader) {
+            if (pResourceShader == m_pShader.get())
+            {
+                CreatePipeline();
+            }
+            else if (pResourceShader == m_pSHShader.get())
+            {
+                CreateSHPipeline();
+            }
+        });
 }
 
 SkyboxBaker::~SkyboxBaker()
@@ -96,6 +126,18 @@ void SkyboxBaker::CreatePipeline()
     m_PipelineGeneration++;
 }
 
+void SkyboxBaker::CreateSHPipeline()
+{
+    // No layout given, so it is derived from the shader and the bind group is built against it.
+    wgpu::ComputePipelineDescriptor descriptor{
+        .label = "Skybox SH pipeline",
+        .compute = { .module = m_pSHShader->GetShaderModule(), .entryPoint = "projectMain" }
+    };
+    m_SHPipeline = GetRenderSystem()->GetDevice().CreateComputePipeline(&descriptor);
+
+    m_PipelineGeneration++;
+}
+
 void SkyboxBaker::CreateCubemap(uint32_t faceSize)
 {
     wgpu::TextureDescriptor textureDescriptor{
@@ -113,6 +155,13 @@ void SkyboxBaker::CreateCubemap(uint32_t faceSize)
         .arrayLayerCount = 6
     };
     m_CubeView = m_Cubemap.CreateView(&cubeViewDescriptor);
+
+    wgpu::TextureViewDescriptor arrayViewDescriptor{
+        .label = "Skybox cubemap array view",
+        .dimension = wgpu::TextureViewDimension::e2DArray,
+        .arrayLayerCount = 6
+    };
+    m_ArrayView = m_Cubemap.CreateView(&arrayViewDescriptor);
     m_FaceSize = faceSize;
 }
 
@@ -204,8 +253,105 @@ void SkyboxBaker::Bake(const SkyboxComponent& skyboxComponent, SkyboxStage stage
         pass.End();
     }
 
+    Project(encoder);
+
     wgpu::CommandBuffer commandBuffer = encoder.Finish();
     device.GetQueue().Submit(1, &commandBuffer);
+
+    m_SHPendingReadback = true;
+    Update();
+}
+
+void SkyboxBaker::Project(wgpu::CommandEncoder& encoder)
+{
+    // Built every bake, as both the cubemap and the pipeline it is laid out against can be replaced.
+    std::array<wgpu::BindGroupEntry, 2> entries = {
+        wgpu::BindGroupEntry{
+            .binding = 0,
+            .textureView = m_ArrayView },
+        wgpu::BindGroupEntry{
+            .binding = 1,
+            .buffer = m_SHPartialsBuffer,
+            .size = kSHPartialsSize }
+    };
+    wgpu::BindGroupDescriptor bindGroupDescriptor{
+        .label = "Skybox SH bind group",
+        .layout = m_SHPipeline.GetBindGroupLayout(0),
+        .entryCount = entries.size(),
+        .entries = entries.data()
+    };
+    wgpu::BindGroup bindGroup = GetRenderSystem()->GetDevice().CreateBindGroup(&bindGroupDescriptor);
+
+    wgpu::ComputePassDescriptor computePassDescriptor{
+        .label = "Skybox SH compute pass"
+    };
+    wgpu::ComputePassEncoder computePass = encoder.BeginComputePass(&computePassDescriptor);
+    computePass.SetPipeline(m_SHPipeline);
+    computePass.SetBindGroup(0, bindGroup);
+    computePass.DispatchWorkgroups(kSHTilesPerSide, kSHTilesPerSide, 6);
+    computePass.End();
+}
+
+void SkyboxBaker::Update()
+{
+    // The readback buffer can't be copied into while it is mapped. The partials keep the latest
+    // bake meanwhile, so whatever was baked during the wait is read once this one lands.
+    if (!m_SHPendingReadback || m_pReadback->inFlight)
+    {
+        return;
+    }
+
+    wgpu::Device device = GetRenderSystem()->GetDevice();
+    wgpu::CommandEncoder encoder = device.CreateCommandEncoder();
+    encoder.CopyBufferToBuffer(m_SHPartialsBuffer, 0, m_pReadback->buffer, 0, kSHPartialsSize);
+    wgpu::CommandBuffer commandBuffer = encoder.Finish();
+    device.GetQueue().Submit(1, &commandBuffer);
+
+    m_SHPendingReadback = false;
+    m_pReadback->inFlight = true;
+
+    std::shared_ptr<Readback> pReadback = m_pReadback;
+    pReadback->buffer.MapAsync(
+        wgpu::MapMode::Read, 0, kSHPartialsSize, wgpu::CallbackMode::AllowSpontaneous,
+        [pReadback](wgpu::MapAsyncStatus status, wgpu::StringView message) {
+            // A cancelled callback means the device is going away, so the buffer mustn't be touched.
+            if (status == wgpu::MapAsyncStatus::CallbackCancelled)
+            {
+                return;
+            }
+
+            pReadback->inFlight = false;
+            if (status != wgpu::MapAsyncStatus::Success)
+            {
+                Log::Error() << "Skybox SH readback failed: " << std::string_view(message.data, message.length);
+                return;
+            }
+
+            // Summed in double, as there are a few hundred partials of very different magnitudes.
+            const glm::vec4* pPartials = static_cast<const glm::vec4*>(pReadback->buffer.GetConstMappedRange(0, kSHPartialsSize));
+            std::array<glm::dvec3, 9> sums{};
+            double solidAngle = 0.0;
+            for (size_t partial = 0; partial < kSHPartialsSize / (9 * sizeof(glm::vec4)); ++partial)
+            {
+                for (size_t i = 0; i < 9; ++i)
+                {
+                    sums[i] += glm::dvec3(pPartials[partial * 9 + i]);
+                }
+                solidAngle += pPartials[partial * 9].w;
+            }
+            pReadback->buffer.Unmap();
+
+            // The texel solid angles are approximate, so the sum is normalized to the whole sphere.
+            // Each band is then convolved with the cosine lobe and divided by pi: 1, 2/3 and 1/4.
+            const double normalization = 4.0 * glm::pi<double>() / solidAngle;
+            constexpr std::array<double, 9> kBandScale = { 1.0, 2.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0, 0.25, 0.25, 0.25, 0.25, 0.25 };
+            AmbientSH ambientSH;
+            for (size_t i = 0; i < 9; ++i)
+            {
+                ambientSH[i] = glm::vec3(sums[i] * normalization * kBandScale[i]);
+            }
+            pReadback->ambientSH = ambientSH;
+        });
 }
 
 } // namespace WingsOfSteel

@@ -7,6 +7,7 @@
 #include <imgui.h>
 
 #include <pandora.hpp>
+#include <render/lighting/lighting_system.hpp>
 #include <render/rendersystem.hpp>
 #include <render/window.hpp>
 #include <resources/resource_system.hpp>
@@ -91,6 +92,11 @@ SkyboxRenderSystem::~SkyboxRenderSystem()
     {
         GetResourceSystem()->GetShaderInjectedSignal().Disconnect(m_ShaderInjectionSignalId.value());
     }
+
+    if (GetRenderSystem())
+    {
+        GetRenderSystem()->GetLightingSystem()->ClearAmbientSH();
+    }
 }
 
 SkyboxComponent* SkyboxRenderSystem::GetSkyboxComponent() const
@@ -136,6 +142,12 @@ void SkyboxRenderSystem::Update(float delta)
         m_BakedPipelineGeneration = m_pBaker->GetPipelineGeneration();
         m_NeedsFullBake = bakePreview;
         CreateBindGroup();
+    }
+
+    m_pBaker->Update();
+    if (m_pBaker->GetAmbientSH().has_value())
+    {
+        GetRenderSystem()->GetLightingSystem()->SetAmbientSH(m_pBaker->GetAmbientSH().value());
     }
 }
 

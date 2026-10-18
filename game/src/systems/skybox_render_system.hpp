@@ -17,7 +17,7 @@ namespace WingsOfSteel
 class SkyboxComponent;
 
 // Bakes the scene's SkyboxComponent into a cubemap whenever it changes, and draws it behind
-// everything else from BaseRenderPass's pre-scene callback.
+// everything else from BaseRenderPass's pre-scene callback. The cubemap's SH become the ambient light.
 class SkyboxRenderSystem : public System, public IDebugUI
 {
 public:
