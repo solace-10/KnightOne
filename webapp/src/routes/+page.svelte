@@ -2,6 +2,7 @@
 	import '../app.css';
 	import Canvas from '$lib/components/Canvas.svelte';
 	import EncounterResultWindow from '$lib/components/EncounterResultWindow.svelte';
+	import HUD from '$lib/components/HUD.svelte';
 </script>
 
 <svelte:head>
@@ -10,6 +11,7 @@
 
 <main class="app">
 	<Canvas />
+	<HUD />
 	<EncounterResultWindow />
 </main>
 
