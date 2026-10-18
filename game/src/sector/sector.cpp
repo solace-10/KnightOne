@@ -78,8 +78,7 @@ void Sector::Initialize()
     AddSystem<DebugRenderSystem>();
 
     m_pCamera = CreateEntity();
-    // The sector was framed when the engine took this as radians, so 70 gave ~50.7 degrees.
-    m_pCamera->AddComponent<CameraComponent>(50.7f, 1.0f, 5000.0f);
+    m_pCamera->AddComponent<CameraComponent>(70.0f, 1.0f, 5000.0f);
 
     SectorCameraComponent& sectorCameraComponent = m_pCamera->AddComponent<SectorCameraComponent>();
     sectorCameraComponent.position = glm::vec3(0.0f, 45.0f, 30.0f);
@@ -142,21 +141,6 @@ void Sector::DrawCameraDebugUI()
     if (ImGui::SliderFloat("Free camera speed", &freeCameraSpeed, 1.0f, 500.0f))
     {
         pCameraSystem->SetFreeCameraSpeed(freeCameraSpeed);
-    }
-    ImGui::TextDisabled("WASD to move, Shift to go faster, hold right mouse to look.");
-
-    const glm::vec3& position = sectorCameraComponent.position;
-    float fposition[3] = { position.x, position.y, position.z };
-    if (ImGui::InputFloat3("Eye", fposition))
-    {
-        sectorCameraComponent.position = glm::vec3(fposition[0], fposition[1], fposition[2]);
-    }
-
-    const glm::vec3& drift = sectorCameraComponent.maximumDrift;
-    float fdrift[3] = { drift.x, drift.y, drift.z };
-    if (ImGui::InputFloat3("Drift", fdrift))
-    {
-        sectorCameraComponent.maximumDrift = glm::vec3(fdrift[0], fdrift[1], fdrift[2]);
     }
 
     ImGui::End();

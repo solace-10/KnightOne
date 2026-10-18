@@ -25,7 +25,7 @@
         {
             "type": "mech_engine",
             "linear_force": 500.0,
-            "torque": 7000.0
+            "torque": 15000.0
         },
         {
             "type": "mech_navigation"

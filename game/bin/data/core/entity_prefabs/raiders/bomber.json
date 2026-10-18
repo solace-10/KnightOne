@@ -23,7 +23,7 @@
         },
         {
             "type": "hull",
-            "health": 100
+            "health": 50
         },
         {
             "type": "ship_engine",
