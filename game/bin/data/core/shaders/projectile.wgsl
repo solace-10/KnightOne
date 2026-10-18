@@ -36,9 +36,12 @@ struct VertexOutput
     return out;
 }
 
+const kBrightness = 3.0;
+
 @fragment fn fragmentMain(in: VertexOutput) -> @location(0) vec4f
 {
-    // A soft core across the width, fading out towards the tail.
-    let intensity = exp(-4.0 * in.uv.x * in.uv.x) * in.uv.y * in.uv.y;
-    return vec4f(in.color * intensity, 0.0);
+    // A soft core across the width, brightest at 90% of the length and fading out towards both ends.
+    let across = exp(-2.0 * in.uv.x * in.uv.x);
+    let along = smoothstep(0.0, 0.9, in.uv.y) * (1.0 - smoothstep(0.9, 1.0, in.uv.y));
+    return vec4f(in.color * across * along * kBrightness, 0.0);
 }
