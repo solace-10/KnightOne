@@ -68,11 +68,15 @@ void PlayerControllerSystem::Update(float delta)
 {
     entt::registry& registry = GetActiveScene()->GetRegistry();
 
-    const glm::vec3 targetWorldPos = Game::Get()->GetSector()->GetSystem<CameraSystem>()->MouseToWorld(m_MousePosition);
+    const CameraSystem* pCameraSystem = Game::Get()->GetSector()->GetSystem<CameraSystem>();
+    const glm::vec3 targetWorldPos = pCameraSystem->MouseToWorld(m_MousePosition);
+
+    // The free camera uses the same keys and mouse buttons, so the mech holds still while it's active.
+    const bool inputEnabled = !pCameraSystem->IsFreeCameraEnabled();
 
     auto navigationView = registry.view<MechNavigationComponent, const PlayerControllerComponent>();
-    navigationView.each([this, targetWorldPos](const auto entityHandle, MechNavigationComponent& mechNavigationComponent, const PlayerControllerComponent& playerControllerComponent) {
-        const std::optional<glm::vec2> movementDirection = GetMovementDirection();
+    navigationView.each([this, targetWorldPos, inputEnabled](const auto entityHandle, MechNavigationComponent& mechNavigationComponent, const PlayerControllerComponent& playerControllerComponent) {
+        const std::optional<glm::vec2> movementDirection = inputEnabled ? GetMovementDirection() : std::nullopt;
         if (movementDirection.has_value())
         {
             const glm::vec2 md(movementDirection.value());
@@ -84,11 +88,14 @@ void PlayerControllerSystem::Update(float delta)
             mechNavigationComponent.ClearThrust();
         }
 
-        mechNavigationComponent.SetAim(targetWorldPos);
+        if (inputEnabled)
+        {
+            mechNavigationComponent.SetAim(targetWorldPos);
+        }
     });
 
     auto weaponsView = registry.view<WeaponComponent>();
-    weaponsView.each([this, targetWorldPos](const auto entityHandle, WeaponComponent& weaponComponent) {
+    weaponsView.each([this, targetWorldPos, inputEnabled](const auto entityHandle, WeaponComponent& weaponComponent) {
         EntitySharedPtr pParentShip;
         EntitySharedPtr pOwnerEntity = weaponComponent.GetOwner().lock();
         if (pOwnerEntity)
@@ -96,10 +103,13 @@ void PlayerControllerSystem::Update(float delta)
             pParentShip = pOwnerEntity->GetParent().lock();
             if (pParentShip && pParentShip->HasComponent<PlayerControllerComponent>())
             {
-                weaponComponent.m_TargetPosition = targetWorldPos;
+                if (inputEnabled)
+                {
+                    weaponComponent.m_TargetPosition = targetWorldPos;
+                }
 
                 auto it = m_WeaponActivations.find(weaponComponent.m_AttachmentPointName);
-                if (it == m_WeaponActivations.cend())
+                if (!inputEnabled || it == m_WeaponActivations.cend())
                 {
                     weaponComponent.m_WantsToFire = false;
                 }
@@ -112,7 +122,7 @@ void PlayerControllerSystem::Update(float delta)
     });
 
     auto shieldsView = registry.view<ShieldComponent>();
-    shieldsView.each([this, targetWorldPos](const auto entityHandle, ShieldComponent& shieldComponent) {
+    shieldsView.each([this, inputEnabled](const auto entityHandle, ShieldComponent& shieldComponent) {
         EntitySharedPtr pParentShip;
         EntitySharedPtr pOwnerEntity = shieldComponent.GetOwner().lock();
         if (pOwnerEntity)
@@ -121,7 +131,7 @@ void PlayerControllerSystem::Update(float delta)
             if (pParentShip && pParentShip->HasComponent<PlayerControllerComponent>())
             {
                 auto it = m_WeaponActivations.find("RightArm");
-                if (it == m_WeaponActivations.cend())
+                if (!inputEnabled || it == m_WeaponActivations.cend())
                 {
                     shieldComponent.WantedState = ShieldState::Inactive;
                 }

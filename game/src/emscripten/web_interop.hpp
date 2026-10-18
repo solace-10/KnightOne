@@ -13,6 +13,7 @@ struct EncounterStats;
 namespace WebInterop
 {
     void NotifyEncounterResolved(EncounterResult result, const EncounterStats& stats);
+    void NotifyDebugUIVisibilityChanged(bool visible);
 } // namespace WebInterop
 
 } // namespace WingsOfSteel

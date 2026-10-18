@@ -1,3 +1,5 @@
+#include <GLFW/glfw3.h>
+
 #include <numeric>
 
 #include <core/interpolation.hpp>
@@ -30,6 +32,11 @@ CameraSystem::~CameraSystem()
         pInputSystem->RemoveMouseButtonCallback(m_RightMouseButtonPressedToken);
         pInputSystem->RemoveMouseButtonCallback(m_RightMouseButtonReleasedToken);
         pInputSystem->RemoveMousePositionCallback(m_MousePositionToken);
+
+        for (InputCallbackToken token : m_KeyboardTokens)
+        {
+            pInputSystem->RemoveKeyboardCallback(token);
+        }
     }
 }
 
@@ -43,6 +50,13 @@ void CameraSystem::Initialize(Scene* pScene)
         m_InputPending = true;
         m_MouseDelta = mouseDelta;
     });
+
+    static constexpr std::array<int, FreeCameraKey::Count> kFreeCameraKeys{ GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D, GLFW_KEY_LEFT_SHIFT };
+    for (size_t i = 0; i < kFreeCameraKeys.size(); i++)
+    {
+        m_KeyboardTokens.push_back(GetInputSystem()->AddKeyboardCallback([this, i]() { m_FreeCameraKeysHeld[i] = true; }, kFreeCameraKeys[i], KeyAction::Pressed));
+        m_KeyboardTokens.push_back(GetInputSystem()->AddKeyboardCallback([this, i]() { m_FreeCameraKeysHeld[i] = false; }, kFreeCameraKeys[i], KeyAction::Released));
+    }
 }
 
 void CameraSystem::Update(float delta)
@@ -56,7 +70,11 @@ void CameraSystem::Update(float delta)
 
     if (pCamera->HasComponent<CameraComponent>())
     {
-        if (pCamera->HasComponent<SectorCameraComponent>())
+        if (m_FreeCameraEnabled)
+        {
+            UpdateFreeCamera(delta, pCamera->GetComponent<CameraComponent>().camera);
+        }
+        else if (pCamera->HasComponent<SectorCameraComponent>())
         {
             SectorCameraComponent& sectorCameraComponent = pCamera->GetComponent<SectorCameraComponent>();
 
@@ -147,6 +165,58 @@ void CameraSystem::Update(float delta)
     }
 }
 
+void CameraSystem::SetFreeCameraEnabled(bool enabled)
+{
+    m_FreeCameraEnabled = enabled;
+    EntitySharedPtr pCamera = GetActiveScene() ? GetActiveScene()->GetCamera() : nullptr;
+    if (!enabled || pCamera == nullptr || !pCamera->HasComponent<CameraComponent>())
+    {
+        return;
+    }
+
+    // Start from wherever the current camera is, so enabling the free camera doesn't jump the view.
+    const Camera& camera = pCamera->GetComponent<CameraComponent>().camera;
+    const glm::vec3 direction = glm::normalize(camera.GetTarget() - camera.GetPosition());
+    m_FreeCameraPosition = camera.GetPosition();
+    m_FreeCameraYaw = glm::atan(direction.z, direction.x);
+    m_FreeCameraPitch = glm::asin(direction.y);
+}
+
+void CameraSystem::UpdateFreeCamera(float delta, Camera& camera)
+{
+    if (m_IsDragging && m_InputPending)
+    {
+        const float sensitivity = 0.15f;
+        m_FreeCameraYaw += glm::radians(m_MouseDelta.x * sensitivity);
+        m_FreeCameraPitch = glm::clamp(m_FreeCameraPitch - glm::radians(m_MouseDelta.y * sensitivity), glm::radians(-89.0f), glm::radians(89.0f));
+    }
+    m_InputPending = false;
+
+    const glm::vec3 up(0.0f, 1.0f, 0.0f);
+    const glm::vec3 forward(
+        glm::cos(m_FreeCameraPitch) * glm::cos(m_FreeCameraYaw),
+        glm::sin(m_FreeCameraPitch),
+        glm::cos(m_FreeCameraPitch) * glm::sin(m_FreeCameraYaw));
+    const glm::vec3 right = glm::normalize(glm::cross(forward, up));
+
+    glm::vec3 movement(0.0f);
+    if (m_FreeCameraKeysHeld[FreeCameraKey::Forward])
+        movement += forward;
+    if (m_FreeCameraKeysHeld[FreeCameraKey::Back])
+        movement -= forward;
+    if (m_FreeCameraKeysHeld[FreeCameraKey::Right])
+        movement += right;
+    if (m_FreeCameraKeysHeld[FreeCameraKey::Left])
+        movement -= right;
+
+    if (glm::length(movement) > 0.0f)
+    {
+        const float speed = m_FreeCameraSpeed * (m_FreeCameraKeysHeld[FreeCameraKey::Fast] ? 4.0f : 1.0f);
+        m_FreeCameraPosition += glm::normalize(movement) * speed * delta;
+    }
+
+    camera.LookAt(m_FreeCameraPosition, m_FreeCameraPosition + forward, up);
+}
 
 glm::vec3 CameraSystem::MouseToWorld(const glm::vec2& mousePos) const
 {

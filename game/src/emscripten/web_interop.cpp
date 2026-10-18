@@ -36,6 +36,23 @@ void NotifyEncounterResolved(EncounterResult result, const EncounterStats& stats
     onEncounterResolved(interop);
 }
 
+void NotifyDebugUIVisibilityChanged(bool visible)
+{
+    emscripten::val callbacks = emscripten::val::global("knightOneCallbacks");
+    if (callbacks.isUndefined() || callbacks.isNull())
+    {
+        return;
+    }
+
+    emscripten::val onDebugUIVisibilityChanged = callbacks["onDebugUIVisibilityChanged"];
+    if (onDebugUIVisibilityChanged.isUndefined())
+    {
+        return;
+    }
+
+    onDebugUIVisibilityChanged(visible);
+}
+
 } // namespace WingsOfSteel::WebInterop
 
 #endif // TARGET_PLATFORM_WEB

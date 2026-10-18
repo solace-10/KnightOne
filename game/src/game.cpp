@@ -1,3 +1,5 @@
+#include <GLFW/glfw3.h>
+
 #include <debug_visualization/model_visualization.hpp>
 #include <imgui/imgui_system.hpp>
 #include <input/input_system.hpp>
@@ -12,6 +14,7 @@
 #include <scene/systems/model_render_system.hpp>
 #include <scene/systems/physics_simulation_system.hpp>
 
+#include "emscripten/web_interop.hpp"
 #include "game.hpp"
 #include "sector/encounter.hpp"
 #include "sector/sector.hpp"
@@ -58,12 +61,8 @@ void Game::Initialize()
     pRenderSystem->AddPass(std::make_shared<UIRenderPass>());
 
     GetImGuiSystem()->SetGameMenuBarCallback([this]() { DrawImGuiMenuBar(); });
-
-#if defined(TARGET_PLATFORM_WEB)
-    GetInputSystem()->SetCursorMode(CursorMode::Locked);
-#elif defined(TARGET_PLATFORM_NATIVE)
-    GetInputSystem()->SetCursorMode(CursorMode::Normal);
-#endif
+    GetInputSystem()->AddKeyboardCallback([this]() { ShowDebugUI(!GetImGuiSystem()->IsVisible()); }, GLFW_KEY_F1, KeyAction::Pressed);
+    ShowDebugUI(false);
 
     m_pSector = std::make_shared<Sector>();
     m_pSector->Initialize();
@@ -77,6 +76,17 @@ void Game::Update(float delta)
 
 void Game::Shutdown()
 {
+}
+
+// The debug UI needs a free cursor, which on web means releasing the pointer lock.
+void Game::ShowDebugUI(bool state)
+{
+    GetImGuiSystem()->Show(state);
+
+#if defined(TARGET_PLATFORM_WEB)
+    GetInputSystem()->SetCursorMode(state ? CursorMode::Normal : CursorMode::Locked);
+    WebInterop::NotifyDebugUIVisibilityChanged(state);
+#endif
 }
 
 // Called from ImGuiSystem::Update() to draw any menus in the menu bar.
