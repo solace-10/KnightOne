@@ -4,6 +4,7 @@
 #include <limits>
 
 #include <pandora.hpp>
+#include <scene/components/rigid_body_component.hpp>
 #include <scene/scene.hpp>
 
 #include "components/player_controller_component.hpp"
@@ -23,10 +24,13 @@ PlayerControllerSystem::~PlayerControllerSystem()
     InputSystem* pInputSystem = GetInputSystem();
     if (pInputSystem)
     {
+        // Actions are bound to either keys or mouse buttons. Tokens are unique across both, so removing from both is safe.
         for (auto& inputAction : m_InputActions)
         {
             pInputSystem->RemoveKeyboardCallback(inputAction.pressed);
             pInputSystem->RemoveKeyboardCallback(inputAction.released);
+            pInputSystem->RemoveMouseButtonCallback(inputAction.pressed);
+            pInputSystem->RemoveMouseButtonCallback(inputAction.released);
         }
 
         pInputSystem->RemoveMousePositionCallback(m_MousePositionToken);
@@ -61,6 +65,11 @@ void PlayerControllerSystem::Initialize(Scene* pScene)
     m_InputActions[static_cast<size_t>(InputAction::RightShoulderWeapon)].pressed  = pInputSystem->AddKeyboardCallback([this]() { SetWeaponFire("RightShoulder", true); },  GLFW_KEY_E, KeyAction::Pressed);
     m_InputActions[static_cast<size_t>(InputAction::RightShoulderWeapon)].released = pInputSystem->AddKeyboardCallback([this]() { SetWeaponFire("RightShoulder", false); }, GLFW_KEY_E, KeyAction::Released);
 
+    m_InputActions[static_cast<size_t>(InputAction::Boost)].pressed  = pInputSystem->AddKeyboardCallback([this]() { m_Boost = true; },  GLFW_KEY_LEFT_SHIFT, KeyAction::Pressed);
+    m_InputActions[static_cast<size_t>(InputAction::Boost)].released = pInputSystem->AddKeyboardCallback([this]() { m_Boost = false; }, GLFW_KEY_LEFT_SHIFT, KeyAction::Released);
+
+    m_InputActions[static_cast<size_t>(InputAction::Dodge)].pressed = pInputSystem->AddKeyboardCallback([this]() { m_DodgeRequested = true; }, GLFW_KEY_SPACE, KeyAction::Pressed);
+
     m_MousePositionToken = pInputSystem->AddMousePositionCallback([this](const glm::vec2& mousePosition, const glm::vec2& mouseDelta) { m_MousePosition = mousePosition; });
 }
 
@@ -74,18 +83,27 @@ void PlayerControllerSystem::Update(float delta)
     // The free camera uses the same keys and mouse buttons, so the mech holds still while it's active.
     const bool inputEnabled = !pCameraSystem->IsFreeCameraEnabled();
 
-    auto navigationView = registry.view<MechNavigationComponent, const PlayerControllerComponent>();
-    navigationView.each([this, targetWorldPos, inputEnabled](const auto entityHandle, MechNavigationComponent& mechNavigationComponent, const PlayerControllerComponent& playerControllerComponent) {
+    auto navigationView = registry.view<MechNavigationComponent, const PlayerControllerComponent, const RigidBodyComponent>();
+    navigationView.each([this, targetWorldPos, inputEnabled](const auto entityHandle, MechNavigationComponent& mechNavigationComponent, const PlayerControllerComponent& playerControllerComponent, const RigidBodyComponent& rigidBodyComponent) {
         const std::optional<glm::vec2> movementDirection = inputEnabled ? GetMovementDirection() : std::nullopt;
+        std::optional<glm::vec3> thrustDirection;
         if (movementDirection.has_value())
         {
             const glm::vec2 md(movementDirection.value());
-            const glm::vec3 thrustDirection(md.x, 0.0f, -md.y);
-            mechNavigationComponent.SetThrust(thrustDirection);
+            thrustDirection = glm::vec3(md.x, 0.0f, -md.y);
+            mechNavigationComponent.SetThrust(thrustDirection.value());
         }
         else
         {
             mechNavigationComponent.ClearThrust();
+        }
+
+        mechNavigationComponent.SetBoost(inputEnabled && m_Boost);
+
+        // Without a movement direction, the mech dodges away from where it is facing.
+        if (inputEnabled && m_DodgeRequested)
+        {
+            mechNavigationComponent.SetDodge(thrustDirection.value_or(-rigidBodyComponent.GetForwardVector()));
         }
 
         if (inputEnabled)
@@ -93,6 +111,7 @@ void PlayerControllerSystem::Update(float delta)
             mechNavigationComponent.SetAim(targetWorldPos);
         }
     });
+    m_DodgeRequested = false;
 
     auto weaponsView = registry.view<WeaponComponent>();
     weaponsView.each([this, targetWorldPos, inputEnabled](const auto entityHandle, WeaponComponent& weaponComponent) {

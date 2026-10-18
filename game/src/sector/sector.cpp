@@ -32,6 +32,7 @@
 #include "systems/camera_system.hpp"
 #include "systems/carrier_system.hpp"
 #include "systems/debug_render_system.hpp"
+#include "systems/heat_management_system.hpp"
 #include "systems/mech_navigation_system.hpp"
 #include "systems/player_controller_system.hpp"
 #include "systems/shield_system.hpp"
@@ -70,6 +71,7 @@ void Sector::Initialize()
     AddSystem<TargetOverlaySystem>();
     AddSystem<ThreatIndicatorSystem>();
     AddSystem<ShieldSystem>();
+    AddSystem<HeatManagementSystem>();
     AddSystem<SkyboxRenderSystem>();
 
     // Make sure these systems are added after everything else that might modify transforms,

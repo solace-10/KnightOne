@@ -25,7 +25,12 @@
         {
             "type": "mech_engine",
             "linear_force": 500.0,
-            "torque": 15000.0
+            "torque": 15000.0,
+            "max_speed": 60.0,
+            "boost_linear_force": 1000.0,
+            "boost_max_speed": 100.0,
+            "dodge_speed": 120.0,
+            "dodge_cooldown": 1.0
         },
         {
             "type": "mech_navigation"
@@ -64,6 +69,10 @@
         },
         {
             "type": "mech_modules"
+        },
+        {
+            "type": "heat",
+            "overheat_threshold": 100
         }
     ]
 }
