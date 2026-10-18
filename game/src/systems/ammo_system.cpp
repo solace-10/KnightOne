@@ -48,7 +48,10 @@ void AmmoSystem::Update(float delta)
         std::vector<PhysicsSimulationSystem::RaycastResult> raycastResults = pPhysicsSystem->RaycastAll(startPos, endPos);
         if (raycastResults.empty())
         {
-            GetDebugRender()->Line(startPos, endPos, Color::Yellow);
+            if (m_DrawRaycasts)
+            {
+                GetDebugRender()->Line(startPos, endPos, Color::Yellow);
+            }
         }
         else
         {
@@ -99,11 +102,14 @@ void AmmoSystem::Update(float delta)
 
                 if (hasHitTerminalEntity)
                 {
-                    GetDebugRender()->Line(startPos, result.position, Color::Red);
-                    GetDebugRender()->Circle(result.position, glm::vec3(0.0f, 1.0f, 0.0f), Color::Red, 0.2f, 8);
+                    if (m_DrawRaycasts)
+                    {
+                        GetDebugRender()->Line(startPos, result.position, Color::Red);
+                        GetDebugRender()->Circle(result.position, glm::vec3(0.0f, 1.0f, 0.0f), Color::Red, 0.2f, 8);
+                    }
                     break;
                 }
-                else
+                else if (m_DrawRaycasts)
                 {
                     GetDebugRender()->Line(startPos, endPos, Color::Yellow);
                 }

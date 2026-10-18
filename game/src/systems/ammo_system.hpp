@@ -21,9 +21,14 @@ public:
 
     void Instantiate(EntitySharedPtr pWeaponEntity, const WeaponComponent& weaponComponent);
 
+    bool GetDrawRaycasts() const { return m_DrawRaycasts; }
+    void SetDrawRaycasts(bool state) { m_DrawRaycasts = state; }
+
 private:
     void ApplyHullDamage(EntitySharedPtr pAmmoEntity, EntitySharedPtr pHitEntity, bool& hitEntityStillAlive) const;
     bool WasBlockedByShield(EntitySharedPtr pHitEntity, const glm::vec3& hitPosition) const;
+
+    bool m_DrawRaycasts{ false };
 };
 
 } // namespace WingsOfSteel

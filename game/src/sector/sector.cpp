@@ -35,6 +35,7 @@
 #include "systems/heat_management_system.hpp"
 #include "systems/mech_navigation_system.hpp"
 #include "systems/player_controller_system.hpp"
+#include "systems/projectile_render_system.hpp"
 #include "systems/shield_system.hpp"
 #include "systems/skybox_render_system.hpp"
 #include "systems/ship_navigation_system.hpp"
@@ -73,6 +74,7 @@ void Sector::Initialize()
     AddSystem<ShieldSystem>();
     AddSystem<HeatManagementSystem>();
     AddSystem<SkyboxRenderSystem>();
+    AddSystem<ProjectileRenderSystem>();
 
     // Make sure these systems are added after everything else that might modify transforms,
     // otherwise the camera and debug rendering will be offset by a frame.
