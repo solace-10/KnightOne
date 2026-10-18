@@ -1,5 +1,7 @@
 #include "systems/ammo_system.hpp"
 
+#include <algorithm>
+
 #include <core/random.hpp>
 #include <pandora.hpp>
 #include <render/debug_render.hpp>
@@ -35,7 +37,7 @@ void AmmoSystem::Update(float delta)
 
     PhysicsSimulationSystem* pPhysicsSystem = GetActiveScene()->GetSystem<PhysicsSimulationSystem>();
 
-    view.each([delta, this, pPhysicsSystem](
+    view.each([delta, this, pPhysicsSystem, &registry](
                   const auto entityHandle,
                   const TransformComponent& transformComponent,
                   AmmoImpactComponent& ammoImpactComponent,
@@ -43,9 +45,20 @@ void AmmoSystem::Update(float delta)
                   EntityReferenceComponent& entityReferenceComponent) {
         glm::vec3 startPos = transformComponent.GetTranslation();
         glm::vec3 direction = transformComponent.GetForward();
-        glm::vec3 endPos = startPos + direction * ammoRaycastComponent.GetRaycastLength();
 
+        // The raycast must cover at least this frame's movement, or a slow frame lets the projectile
+        // skip past a target. It's still capped at the projectile's range.
+        float raycastLength = ammoRaycastComponent.GetRaycastLength();
+        if (const AmmoMovementComponent* pAmmoMovementComponent = registry.try_get<AmmoMovementComponent>(entityHandle))
+        {
+            const float step = delta * pAmmoMovementComponent->GetSpeed();
+            raycastLength = glm::max(raycastLength, glm::min(step, raycastLength + pAmmoMovementComponent->GetRange()));
+        }
+        glm::vec3 endPos = startPos + direction * raycastLength;
+
+        // Bullet doesn't order its hits, and the first one that counts stops the projectile.
         std::vector<PhysicsSimulationSystem::RaycastResult> raycastResults = pPhysicsSystem->RaycastAll(startPos, endPos);
+        std::sort(raycastResults.begin(), raycastResults.end(), [](const auto& a, const auto& b) { return a.fraction < b.fraction; });
         if (raycastResults.empty())
         {
             if (m_DrawRaycasts)
@@ -117,15 +130,16 @@ void AmmoSystem::Update(float delta)
         }
     });
 
-    // Advance the projectile and kill it if it has exceeded its maximum range.
+    // Advance the projectile, stopping at its maximum range. It is killed the frame after it gets
+    // there, so the raycast above still covers the end of its range.
     auto movementView = registry.view<TransformComponent, AmmoMovementComponent, EntityReferenceComponent>();
     movementView.each([delta, this, pPhysicsSystem](const auto entity, TransformComponent& transformComponent, AmmoMovementComponent& ammoMovementComponent, EntityReferenceComponent& entityReferenceComponent) {
         const glm::vec3 startPos = transformComponent.GetTranslation();
         const glm::vec3 direction = transformComponent.GetForward();
 
-        const float distance = delta * ammoMovementComponent.GetSpeed();
+        const float distance = glm::min(delta * ammoMovementComponent.GetSpeed(), ammoMovementComponent.GetRange());
         const float rangeAfterAdvance = ammoMovementComponent.GetRange() - distance;
-        if (rangeAfterAdvance < 0.0f)
+        if (ammoMovementComponent.GetRange() <= 0.0f)
         {
             EntitySharedPtr pAmmoEntity = entityReferenceComponent.GetOwner();
             if (pAmmoEntity)
