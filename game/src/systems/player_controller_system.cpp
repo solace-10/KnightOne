@@ -70,6 +70,8 @@ void PlayerControllerSystem::Initialize(Scene* pScene)
 
     m_InputActions[static_cast<size_t>(InputAction::Dodge)].pressed = pInputSystem->AddKeyboardCallback([this]() { m_DodgeRequested = true; }, GLFW_KEY_SPACE, KeyAction::Pressed);
 
+    m_InputActions[static_cast<size_t>(InputAction::Reload)].pressed = pInputSystem->AddKeyboardCallback([this]() { m_ReloadRequested = true; }, GLFW_KEY_R, KeyAction::Pressed);
+
     m_MousePositionToken = pInputSystem->AddMousePositionCallback([this](const glm::vec2& mousePosition, const glm::vec2& mouseDelta) { m_MousePosition = mousePosition; });
 }
 
@@ -125,6 +127,7 @@ void PlayerControllerSystem::Update(float delta)
                 if (inputEnabled)
                 {
                     weaponComponent.m_TargetPosition = targetWorldPos;
+                    weaponComponent.m_WantsToReload = m_ReloadRequested;
                 }
 
                 auto it = m_WeaponActivations.find(weaponComponent.m_AttachmentPointName);
@@ -139,6 +142,7 @@ void PlayerControllerSystem::Update(float delta)
             }
         }
     });
+    m_ReloadRequested = false;
 
     auto shieldsView = registry.view<ShieldComponent>();
     shieldsView.each([this, inputEnabled](const auto entityHandle, ShieldComponent& shieldComponent) {

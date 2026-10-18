@@ -47,6 +47,12 @@ public:
     float m_Range{ 100.0f };
     float m_RateOfFire{ 1.0f }; // Ammo fired per second.
     float m_FireTimer{ 0.0f }; // Number in seconds until the weapon can be fired again.
+    int m_ClipSize{ 0 }; // Rounds per clip. 0 means infinite ammo.
+    int m_Clips{ 0 }; // Clips remaining, including the loaded one. 0 means unlimited.
+    float m_ReloadTime{ 0.0f }; // Seconds to load a new clip.
+    int m_AmmoInClip{ 0 };
+    std::optional<float> m_ReloadTimer; // Seconds until the reload completes; set while reloading.
+    bool m_WantsToReload{ false }; // A controller has requested this weapon to reload.
     bool m_WantsToFire{ false }; // A controller has requested this weapon to fire.
     bool m_AutomatedTargeting{ true }; // AI-controlled target acquisition.
     WeaponAccuracy m_Accuracy{ WeaponAccuracy::Perfect };
@@ -68,6 +74,10 @@ public:
         m_RateOfFire = Json::DeserializeFloat(pContext, json, "rate_of_fire", 0.0f);
         m_Ammo = Json::DeserializeString(pContext, json, "ammo", "");
         m_Dummy = Json::DeserializeBool(pContext, json, "dummy", false);
+        m_ClipSize = Json::DeserializeInteger(pContext, json, "clip_size", 0);
+        m_Clips = Json::DeserializeInteger(pContext, json, "clips", 0);
+        m_ReloadTime = Json::DeserializeFloat(pContext, json, "reload_time", 0.0f);
+        m_AmmoInClip = m_ClipSize;
 
         const std::string accuracy = Json::DeserializeString(pContext, json, "accuracy", "unused");
         if (accuracy == "perfect")

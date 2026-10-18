@@ -13,6 +13,7 @@
 #include "components/faction_component.hpp"
 #include "components/hardpoint_component.hpp"
 #include "components/mech_modules_component.hpp"
+#include "components/player_controller_component.hpp"
 #include "components/shield_component.hpp"
 #include "components/weapon_component.hpp"
 #include "entity_builder/entity_builder.hpp"
@@ -198,6 +199,11 @@ void WeaponSystem::FireWeapon(EntitySharedPtr pWeaponEntity, WeaponComponent& we
 
     weaponComponent.m_FireTimer = 1.0f / weaponComponent.m_RateOfFire;
 
+    if (weaponComponent.m_ClipSize > 0)
+    {
+        weaponComponent.m_AmmoInClip--;
+    }
+
     AmmoSystem* pAmmoSystem = GetActiveScene()->GetSystem<AmmoSystem>();
     if (pAmmoSystem)
     {
@@ -381,6 +387,12 @@ void WeaponSystem::UpdateFiring(float delta, const glm::mat4& hardpointWorldTran
     }
 
     weaponComponent.m_FireTimer = glm::max(0.0f, weaponComponent.m_FireTimer - delta);
+
+    if (UpdateReload(delta, pWeaponParentEntity, weaponComponent))
+    {
+        return;
+    }
+
     if (weaponComponent.m_FireTimer <= 0.0f && weaponComponent.m_WantsToFire)
     {
         // Do a raycast to check if we have an ally in the line of fire. If so, don't open fire.
@@ -411,6 +423,47 @@ void WeaponSystem::UpdateFiring(float delta, const glm::mat4& hardpointWorldTran
             FireWeapon(pWeaponEntity, weaponComponent);
         }
     }
+}
+
+bool WeaponSystem::UpdateReload(float delta, EntitySharedPtr pWeaponParentEntity, WeaponComponent& weaponComponent)
+{
+    const bool wantsToReload = weaponComponent.m_WantsToReload;
+    weaponComponent.m_WantsToReload = false;
+
+    if (weaponComponent.m_ClipSize <= 0)
+    {
+        return false;
+    }
+
+    if (!weaponComponent.m_ReloadTimer.has_value())
+    {
+        // The player reloads manually; AI-controlled weapons reload as soon as the clip is empty.
+        const bool isPlayerControlled = pWeaponParentEntity && pWeaponParentEntity->HasComponent<PlayerControllerComponent>();
+        const bool shouldReload = isPlayerControlled ? wantsToReload : weaponComponent.m_AmmoInClip <= 0;
+        const bool hasSpareClip = weaponComponent.m_Clips != 1;
+        if (!shouldReload || !hasSpareClip || weaponComponent.m_AmmoInClip >= weaponComponent.m_ClipSize)
+        {
+            return weaponComponent.m_AmmoInClip <= 0;
+        }
+
+        // Any rounds left in the current clip are discarded.
+        weaponComponent.m_AmmoInClip = 0;
+        weaponComponent.m_ReloadTimer = weaponComponent.m_ReloadTime;
+    }
+
+    weaponComponent.m_ReloadTimer.value() -= delta;
+    if (weaponComponent.m_ReloadTimer.value() > 0.0f)
+    {
+        return true;
+    }
+
+    weaponComponent.m_ReloadTimer.reset();
+    weaponComponent.m_AmmoInClip = weaponComponent.m_ClipSize;
+    if (weaponComponent.m_Clips > 0)
+    {
+        weaponComponent.m_Clips--;
+    }
+    return false;
 }
 
 void WeaponSystem::BuildPotentialTargetList()

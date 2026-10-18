@@ -26,6 +26,7 @@ enum class InputAction
     RightShoulderWeapon,
     Boost,
     Dodge,
+    Reload,
 
     InputActionCount
 };
@@ -66,6 +67,7 @@ private:
     std::unordered_map<std::string, bool> m_WeaponActivations;
     bool m_Boost{ false };
     bool m_DodgeRequested{ false };
+    bool m_ReloadRequested{ false };
 
     glm::vec2 m_MousePosition{ 0.0f };
 };
