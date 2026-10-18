@@ -128,8 +128,10 @@ void CameraSystem::Update(float delta)
                 }
             }
 
+            // Position and target share the same spring so they lag the mech equally: the camera trails
+            // without rotating, which would otherwise skew the on-screen movement directions.
             DampSpring(sectorCameraComponent.position, cameraWantedPosition, sectorCameraComponent.positionVelocity, 0.5f, delta);
-            sectorCameraComponent.target = cameraWantedTarget;
+            DampSpring(sectorCameraComponent.target, cameraWantedTarget, sectorCameraComponent.targetVelociy, 0.5f, delta);
 
             CameraComponent& cameraComponent = pCamera->GetComponent<CameraComponent>();
             cameraComponent.camera.LookAt(sectorCameraComponent.position, sectorCameraComponent.target, glm::vec3(0.0f, 1.0f, 0.0f));
