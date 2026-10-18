@@ -1,9 +1,11 @@
+
+
 {
     "name": "ember_reach",
     "components": [
         {
             "type": "skybox",
-            "orientation": [ 0.0, -56.0, 0.0 ],
+            "orientation": [ -160.0, -16.0, -4.0 ],
             "floor_color_a": [ 0.050, 0.022, 0.060 ],
             "floor_color_b": [ 0.016, 0.030, 0.060 ],
             "floor_glow": 1.0,
@@ -12,7 +14,7 @@
             "warp_strength": 0.35,
             "noise_scale": 1.6,
             "seed": [ 0.0, 0.0, 0.0 ],
-            "stars": 1.0,
+            "stars": 0.03,
             "resolution": 1024,
             "lobes": [
                 { "yaw": 18, "pitch": 8, "roll": 25, "sharpness_x": 2.6, "sharpness_y": 0.9, "color": [ 1.70, 0.62, 0.24 ] },
