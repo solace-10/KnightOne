@@ -23,7 +23,8 @@ Encounter::~Encounter()
 {
     if (m_OnEntityKilled != InvalidSignalId)
     {
-        Sector* pSector = Game::Get()->GetSector();
+        // Expired when the Sector itself is being destroyed, by which point its signal may already be gone.
+        SectorSharedPtr pSector = m_pSector.lock();
         if (pSector)
         {
             pSector->GetEntityKilledSignal().Disconnect(m_OnEntityKilled);
