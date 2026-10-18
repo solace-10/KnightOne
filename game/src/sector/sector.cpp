@@ -35,6 +35,7 @@
 #include "systems/mech_navigation_system.hpp"
 #include "systems/player_controller_system.hpp"
 #include "systems/shield_system.hpp"
+#include "systems/skybox_render_system.hpp"
 #include "systems/ship_navigation_system.hpp"
 #include "systems/target_overlay_system.hpp"
 #include "systems/threat_indicator_system.hpp"
@@ -69,6 +70,7 @@ void Sector::Initialize()
     AddSystem<TargetOverlaySystem>();
     AddSystem<ThreatIndicatorSystem>();
     AddSystem<ShieldSystem>();
+    AddSystem<SkyboxRenderSystem>();
 
     // Make sure these systems are added after everything else that might modify transforms,
     // otherwise the camera and debug rendering will be offset by a frame.
@@ -85,7 +87,7 @@ void Sector::Initialize()
     sectorCameraComponent.maximumDrift = glm::vec3(0.0f, 0.0f, 0.0f);
     SetCamera(m_pCamera);
 
-    SpawnDome();
+    SpawnSkybox();
     SpawnLight();
     SpawnPlayerFleet();
 
@@ -147,17 +149,10 @@ void Sector::DrawCameraDebugUI()
     ImGui::End();
 }
 
-void Sector::SpawnDome()
+void Sector::SpawnSkybox()
 {
-    m_pDome = CreateEntity();
-
-    SectorCameraComponent& sectorCameraComponent = m_pCamera->GetComponent<SectorCameraComponent>();
-
-    TransformComponent& transformComponent = m_pDome->AddComponent<TransformComponent>();
-    transformComponent.transform = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
-    ModelComponent& modelComponent = m_pDome->AddComponent<ModelComponent>();
-    modelComponent.SetModel("/models/dome/dome.glb");
+    SceneWeakPtr pWeakScene = GetWeakPtr();
+    EntityBuilder::Build(pWeakScene, "/entity_prefabs/skyboxes/ember_reach.json", glm::mat4(1.0f), [](EntitySharedPtr pEntity) {});
 }
 
 void Sector::SpawnLight()
@@ -175,7 +170,7 @@ void Sector::SpawnLight()
 
 void Sector::SpawnPlayerFleet()
 {
-    SceneWeakPtr pWeakScene = weak_from_this();
+    SceneWeakPtr pWeakScene = GetWeakPtr();
 
     SpawnMech(glm::vec3(-200.0f, 0.0f, 0.0f), 90.0f, true, WingRole::Offense);
     SpawnMech(glm::vec3(-200.0f, 0.0f, 30.0f), 90.0f, false, WingRole::Defense);
@@ -195,7 +190,7 @@ void Sector::SpawnMech(const glm::vec3& position, float angle, bool isPlayerMech
     glm::mat4 transform = glm::translate(glm::mat4(1.0f), position);
     transform = glm::rotate(transform, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    SceneWeakPtr pWeakScene = weak_from_this();
+    SceneWeakPtr pWeakScene = GetWeakPtr();
     EntityBuilder::Build(pWeakScene, "/entity_prefabs/player/mech.json", transform, [pWeakScene, isPlayerMech, role](EntitySharedPtr pMechEntity) {
         SectorSharedPtr pScene = std::dynamic_pointer_cast<Sector>(pWeakScene.lock());
         if (pScene)

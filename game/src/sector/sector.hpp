@@ -35,13 +35,12 @@ public:
 
 private:
     void DrawCameraDebugUI();
-    void SpawnDome();
+    void SpawnSkybox();
     void SpawnLight();
     void SpawnPlayerFleet();
     void SpawnMech(const glm::vec3& position, float angle, bool isPlayerMech, WingRole role);
 
     EncounterUniquePtr m_pEncounter;
-    EntitySharedPtr m_pDome;
     EntitySharedPtr m_pCamera;
     EntitySharedPtr m_pLight;
     EntityWeakPtr m_pPlayerMech;

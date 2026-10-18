@@ -1,0 +1,33 @@
+{
+    "name": "ember_reach",
+    "components": [
+        {
+            "type": "skybox",
+            "orientation": [ 0.0, -56.0, 0.0 ],
+            "floor_color_a": [ 0.050, 0.022, 0.060 ],
+            "floor_color_b": [ 0.016, 0.030, 0.060 ],
+            "floor_glow": 1.0,
+            "absorb": [ 0.9, 1.5, 2.3 ],
+            "dust": 0.6,
+            "warp_strength": 0.35,
+            "noise_scale": 1.6,
+            "seed": [ 0.0, 0.0, 0.0 ],
+            "stars": 1.0,
+            "resolution": 1024,
+            "lobes": [
+                { "yaw": 18, "pitch": 8, "roll": 25, "sharpness_x": 2.6, "sharpness_y": 0.9, "color": [ 1.70, 0.62, 0.24 ] },
+                { "yaw": -22, "pitch": -6, "roll": -35, "sharpness_x": 7.0, "sharpness_y": 1.6, "color": [ 1.30, 0.24, 0.62 ] },
+                { "yaw": 48, "pitch": 26, "roll": 70, "sharpness_x": 14.0, "sharpness_y": 1.4, "color": [ 1.00, 0.78, 0.36 ] },
+                { "yaw": 5, "pitch": -30, "roll": 10, "sharpness_x": 5.0, "sharpness_y": 3.0, "color": [ 0.70, 0.18, 0.20 ] },
+                { "yaw": 178, "pitch": -8, "roll": 5, "sharpness_x": 2.2, "sharpness_y": 1.1, "color": [ 0.16, 0.52, 0.62 ] },
+                { "yaw": 130, "pitch": 38, "roll": 40, "sharpness_x": 7.0, "sharpness_y": 1.2, "color": [ 0.22, 0.28, 0.85 ] },
+                { "yaw": -110, "pitch": 20, "roll": -60, "sharpness_x": 9.0, "sharpness_y": 1.0, "color": [ 0.42, 0.16, 0.48 ] },
+                { "yaw": -70, "pitch": -45, "roll": 0, "sharpness_x": 4.0, "sharpness_y": 4.0, "color": [ 0.20, 0.10, 0.28 ] }
+            ],
+            "cores": [
+                { "yaw": 14, "pitch": 6, "sharpness": 2200, "color": [ 7.0, 3.8, 1.8 ] },
+                { "yaw": 172, "pitch": -6, "sharpness": 5000, "color": [ 1.6, 3.0, 3.6 ] }
+            ]
+        }
+    ]
+}

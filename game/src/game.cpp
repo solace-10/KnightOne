@@ -16,6 +16,7 @@
 #include "sector/encounter.hpp"
 #include "sector/sector.hpp"
 #include "systems/ai_strategic_system.hpp"
+#include "systems/skybox_render_system.hpp"
 #include "render_pass/threat_indicator_render_pass.hpp"
 
 namespace WingsOfSteel
@@ -42,7 +43,16 @@ void Game::Initialize()
 
     RenderSystem* pRenderSystem = GetRenderSystem();
     pRenderSystem->ClearPasses();
-    pRenderSystem->AddPass(std::make_shared<BaseRenderPass>());
+    BaseRenderPassSharedPtr pBaseRenderPass = std::make_shared<BaseRenderPass>();
+    pBaseRenderPass->SetPreSceneCallback([](wgpu::RenderPassEncoder& renderPass) {
+        Scene* pScene = GetActiveScene();
+        SkyboxRenderSystem* pSkyboxRenderSystem = pScene ? pScene->GetSystem<SkyboxRenderSystem>() : nullptr;
+        if (pSkyboxRenderSystem)
+        {
+            pSkyboxRenderSystem->Render(renderPass);
+        }
+    });
+    pRenderSystem->AddPass(pBaseRenderPass);
     pRenderSystem->AddPass(std::make_shared<ThreatIndicatorRenderPass>());
     pRenderSystem->AddPass(std::make_shared<PresentPass>());
     pRenderSystem->AddPass(std::make_shared<UIRenderPass>());
@@ -101,6 +111,16 @@ void Game::DrawImGuiMenuBar()
                 }
 
                 ImGui::EndMenu();
+            }
+
+            SkyboxRenderSystem* pSkyboxRenderSystem = m_pSector->GetSystem<SkyboxRenderSystem>();
+            if (pSkyboxRenderSystem)
+            {
+                bool showDebugUI = pSkyboxRenderSystem->IsDebugUIVisible();
+                if (ImGui::MenuItem("Skybox", nullptr, &showDebugUI))
+                {
+                    pSkyboxRenderSystem->ShowDebugUI(showDebugUI);
+                }
             }
 
             static bool sShowCameraWindow = false;
