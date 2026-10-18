@@ -19,6 +19,8 @@
 #include "sector/encounter.hpp"
 #include "sector/sector.hpp"
 #include "systems/ai_strategic_system.hpp"
+#include "systems/ammo_system.hpp"
+#include "systems/projectile_render_system.hpp"
 #include "systems/skybox_render_system.hpp"
 #include "render_pass/threat_indicator_render_pass.hpp"
 
@@ -53,6 +55,14 @@ void Game::Initialize()
         if (pSkyboxRenderSystem)
         {
             pSkyboxRenderSystem->Render(renderPass);
+        }
+    });
+    pBaseRenderPass->SetPostSceneCallback([](wgpu::RenderPassEncoder& renderPass) {
+        Scene* pScene = GetActiveScene();
+        ProjectileRenderSystem* pProjectileRenderSystem = pScene ? pScene->GetSystem<ProjectileRenderSystem>() : nullptr;
+        if (pProjectileRenderSystem)
+        {
+            pProjectileRenderSystem->Render(renderPass);
         }
     });
     pRenderSystem->AddPass(pBaseRenderPass);
@@ -130,6 +140,16 @@ void Game::DrawImGuiMenuBar()
                 if (ImGui::MenuItem("Skybox", nullptr, &showDebugUI))
                 {
                     pSkyboxRenderSystem->ShowDebugUI(showDebugUI);
+                }
+            }
+
+            AmmoSystem* pAmmoSystem = m_pSector->GetSystem<AmmoSystem>();
+            if (pAmmoSystem)
+            {
+                bool drawRaycasts = pAmmoSystem->GetDrawRaycasts();
+                if (ImGui::MenuItem("Ammo raycasts", nullptr, &drawRaycasts))
+                {
+                    pAmmoSystem->SetDrawRaycasts(drawRaycasts);
                 }
             }
 

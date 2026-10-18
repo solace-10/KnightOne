@@ -9,6 +9,11 @@
             "speed": 400
         },
         {
+            "type": "ammo_tracer",
+            "color": [4.0, 1.6, 0.4],
+            "width": 0.5
+        },
+        {
             "type": "ammo_impact",
             "armor_penetration": 0,
             "damage": 10
