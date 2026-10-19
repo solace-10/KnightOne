@@ -1,6 +1,6 @@
 // Draws each projectile as a quad stretched along its flight path and turned about it to face the
 // camera. Additive and linear HDR, so bright tracers bloom.
-@group(0) @binding(0) var<uniform> uGlobalUniforms: GlobalUniforms;
+#include "/shaders/pandora/globals.wgsl"
 
 struct InstanceInput
 {

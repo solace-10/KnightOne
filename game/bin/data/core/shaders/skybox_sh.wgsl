@@ -11,20 +11,7 @@ const kThreads: u32 = kThreadsPerSide * kThreadsPerSide;
 
 var<workgroup> sums: array<array<vec4f, 9>, kThreads>;
 
-// As in skybox_bake.wgsl: the direction through a texel of a cubemap face, with st in [0, 1].
-fn faceDirection(face: u32, st: vec2f) -> vec3f
-{
-    let sc = st * 2.0 - 1.0;
-    switch face
-    {
-        case 0u: { return vec3f(1.0, -sc.y, -sc.x); }
-        case 1u: { return vec3f(-1.0, -sc.y, sc.x); }
-        case 2u: { return vec3f(sc.x, 1.0, sc.y); }
-        case 3u: { return vec3f(sc.x, -1.0, -sc.y); }
-        case 4u: { return vec3f(sc.x, -sc.y, 1.0); }
-        default: { return vec3f(-sc.x, -sc.y, -1.0); }
-    }
-}
+#include "/shaders/common/cubemap.wgsl"
 
 @compute @workgroup_size(kThreadsPerSide, kThreadsPerSide)
 fn projectMain(@builtin(workgroup_id) group: vec3u, @builtin(local_invocation_id) local: vec3u, @builtin(local_invocation_index) index: u32)

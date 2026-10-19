@@ -4,7 +4,7 @@ struct SkyUniforms
     params: vec4f // x: star intensity, y: 1 to draw the stars
 };
 
-@group(0) @binding(0) var<uniform> uGlobalUniforms: GlobalUniforms;
+#include "/shaders/pandora/globals.wgsl"
 @group(1) @binding(0) var skyTexture: texture_cube<f32>;
 @group(1) @binding(1) var skySampler: sampler;
 @group(1) @binding(2) var<uniform> uSky: SkyUniforms;
@@ -24,12 +24,7 @@ struct VertexOutput
     return out;
 }
 
-fn hash33(p: vec3f) -> vec3f
-{
-    var p3 = fract(p * vec3f(0.1031, 0.1030, 0.0973));
-    p3 += dot(p3, p3.yxz + 33.33);
-    return fract((p3.xxy + p3.yxx) * p3.zyx);
-}
+#include "/shaders/common/hash.wgsl"
 
 // Three layers of stars on a cube-projected grid, each star a Gaussian about a pixel wide.
 fn stars(d: vec3f, pixelAngle: f32) -> vec3f

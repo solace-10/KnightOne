@@ -19,7 +19,7 @@ struct LocalUniforms
     modelMatrix: mat4x4<f32>
 };
 
-@group(0) @binding(0) var<uniform> uGlobalUniforms: GlobalUniforms;
+#include "/shaders/pandora/globals.wgsl"
 @group(1) @binding(0) var defaultSampler: sampler;
 @group(1) @binding(1) var baseTexture: texture_2d<f32>;
 
