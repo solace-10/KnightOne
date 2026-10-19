@@ -89,8 +89,10 @@ npm run build        # Production build into webapp/build/
 
 Forge is a Go CLI for the asset pipeline, in `pandora/tools/forge/` (see its `README.md`). Prebuilt
 binaries live in `pandora/tools/forge/bin/forge-<os>-<arch>` (e.g. `forge-linux-amd64`).
-- `forge assets` — compile `game/assets/` into `game/bin/data/core/`, driven by `*.asset.json`
-  descriptors (PNG/JPG become KTX2). Runs on every build; cached.
+- `forge assets` — compile `game/assets/` and the engine's `pandora/assets/` into
+  `game/bin/data/core/`, driven by `*.asset.json` descriptors (PNG/JPG become KTX2). Runs on
+  every build; cached. Engine assets land in the reserved, gitignored `<directory>/pandora/`
+  paths (e.g. `/shaders/pandora/`), which game assets may not write to.
 - `forge manifest` — hash `game/bin/data/core/` into `game/bin/manifest.json` (gitignored)
 - `forge upload` — upload the manifest's files to Cloudflare R2, keyed by content hash
 - `forge serve` — serve `game/bin/` on `http://127.0.0.1:8080/`
@@ -125,6 +127,9 @@ Format with clang-format (WebKit-based): `clang-format -i path/to/file.cpp`
   - Runtime data (models, textures, shaders, UI icons) in `game/bin/data/core/`, loaded through
     the VFS as `/path`. Source assets live in `game/assets/`; Knight-One has no `*.asset.json`
     descriptors yet, so its data is still committed directly rather than compiled by Forge
+  - Shaders can `#include "/shaders/..."` other files, resolved at load time. Shared game code
+    lives in `/shaders/common/`; engine shaders (e.g. `/shaders/pandora/globals.wgsl`, which every
+    scene shader includes for `GlobalUniforms`) come from `pandora/assets/shaders/`
 - `webapp/` - SvelteKit + TypeScript frontend for the web build
 - `scripts/` - Repo scripts (`pandora.sh`)
 
