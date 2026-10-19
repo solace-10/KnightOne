@@ -253,6 +253,20 @@ void RenderSystem::AcquireDevice(void (*callback)())
                                  << " - message: " << std::string_view(message.data, message.length);
                     exit(-1);
                 });
+            // Can fire from inside ~RenderSystem, so it mustn't touch engine state.
+            deviceDescriptor.SetDeviceLostCallback(
+                wgpu::CallbackMode::AllowSpontaneous,
+                [](const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
+                    // Destroyed and CallbackCancelled are the normal shutdown path.
+                    if (reason == wgpu::DeviceLostReason::Destroyed || reason == wgpu::DeviceLostReason::CallbackCancelled)
+                    {
+                        return;
+                    }
+
+                    // Recovering would mean recreating every GPU resource, so treat a real loss as fatal (Log::Error aborts).
+                    Log::Error() << "Device lost: " << magic_enum::enum_name(reason)
+                                 << " - message: " << std::string_view(message.data, message.length);
+                });
 
             g_Adapter.RequestDevice(
                 &deviceDescriptor,
@@ -351,6 +365,12 @@ void RenderSystem::UpdateGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
 
     const AmbientLight& ambientLight = GetLightingSystem()->GetAmbientLight();
     m_GlobalUniforms.ambientLightColor = glm::vec4(ambientLight.Color * ambientLight.Intensity, 1.0f);
+
+    const AmbientSH ambientSH = GetLightingSystem()->GetAmbientSH();
+    for (size_t i = 0; i < ambientSH.size(); ++i)
+    {
+        m_GlobalUniforms.ambientSH[i] = glm::vec4(ambientSH[i], 0.0f);
+    }
 
     GetDevice().GetQueue().WriteBuffer(m_GlobalUniformsBuffer, 0, &m_GlobalUniforms, sizeof(GlobalUniforms));
     renderPass.SetBindGroup(0, m_GlobalUniformsBindGroup);
