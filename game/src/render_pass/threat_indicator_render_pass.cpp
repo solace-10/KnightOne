@@ -126,7 +126,7 @@ void ThreatIndicatorRenderPass::Execute(wgpu::CommandEncoder& encoder)
     };
 
     wgpu::RenderPassEncoder renderPass = encoder.BeginRenderPass(&renderpass);
-    GetRenderSystem()->UpdateGlobalUniforms(renderPass);
+    GetRenderSystem()->BindGlobalUniforms(renderPass);
 
     UpdateVertexBuffer();
 

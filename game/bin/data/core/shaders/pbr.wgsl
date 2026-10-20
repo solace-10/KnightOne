@@ -32,6 +32,7 @@ struct InstanceUniforms
 };
 
 #include "/shaders/pandora/globals.wgsl"
+#include "/shaders/pandora/shadows.wgsl"
 @group(1) @binding(0) var<uniform> uLocalUniforms: LocalUniforms;
 @group(2) @binding(0) var<storage, read> uInstanceUniforms: InstanceUniforms;
 @group(3) @binding(0) var defaultSampler: sampler;
@@ -206,7 +207,8 @@ fn environmentBRDF(F0: vec3f, roughness: f32, NdotV: f32) -> vec3f
 
     // Outgoing radiance from directional light
     let lightColor = uGlobalUniforms.directionalLightColor.rgb;
-    let Lo = (diffuse + specular) * lightColor * NdotL;
+    let shadow = sampleShadow(in.worldPosition, normalize(in.worldNormal));
+    let Lo = (diffuse + specular) * lightColor * NdotL * shadow;
 
     // Ambient lighting with occlusion. The specular half reads the SH in the reflection direction,
     // which is only as sharp as the SH are, so glossy surfaces reflect a very blurred sky.

@@ -199,14 +199,16 @@ GetResourceSystem()->RequestResource("/path/resource.json",
 ### Rendering
 The frame is a list of `Pass`es (`pandora/src/render/pass/`), registered in `Game::Initialize()`
 with `GetRenderSystem()->AddPass()` and run in order via `Execute(wgpu::CommandEncoder&)`:
-1. `BaseRenderPass` renders the scene in linear HDR into the window's scene texture
+1. `ShadowPass` renders opaque models into the directional light's shadow map, which scene shaders
+   sample with `sampleShadow()` from `/shaders/pandora/shadows.wgsl`.
+2. `BaseRenderPass` renders the scene in linear HDR into the window's scene texture
    (`Window::GetSceneFormat()`, RGBA16Float). Scene shaders must output linear colour.
-2. Game passes that need the scene's depth but must stay out of tonemapping (e.g.
+3. Game passes that need the scene's depth but must stay out of tonemapping (e.g.
    `ThreatIndicatorRenderPass`) draw into the overlay (`GetOverlayMsaaColorTexture()`, surface
    format, premultiplied) with a read-only depth attachment.
-3. `PresentPass` applies bloom, exposure and tonemapping, encodes to the surface and composites
+4. `PresentPass` applies bloom, exposure and tonemapping, encodes to the surface and composites
    the overlay.
-4. `UIRenderPass` draws ImGui and debug rendering straight onto the surface.
+5. `UIRenderPass` draws ImGui and debug rendering straight onto the surface.
 
 ### Global Accessors
 ```cpp

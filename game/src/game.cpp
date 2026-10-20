@@ -6,6 +6,7 @@
 #include <pandora.hpp>
 #include <render/pass/base_render_pass.hpp>
 #include <render/pass/present_pass.hpp>
+#include <render/pass/shadow_pass.hpp>
 #include <render/pass/ui_render_pass.hpp>
 #include <render/rendersystem.hpp>
 #include <scene/camera.hpp>
@@ -65,6 +66,7 @@ void Game::Initialize()
             pProjectileRenderSystem->Render(renderPass);
         }
     });
+    pRenderSystem->AddPass(std::make_shared<ShadowPass>());
     pRenderSystem->AddPass(pBaseRenderPass);
     pRenderSystem->AddPass(std::make_shared<ThreatIndicatorRenderPass>());
     pRenderSystem->AddPass(std::make_shared<PresentPass>());
