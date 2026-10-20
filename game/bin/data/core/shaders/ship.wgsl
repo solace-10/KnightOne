@@ -24,7 +24,8 @@ struct InstanceUniforms
     transform: array<mat4x4<f32>>
 };
 
-@group(0) @binding(0) var<uniform> uGlobalUniforms: GlobalUniforms;
+#include "/shaders/pandora/globals.wgsl"
+#include "/shaders/pandora/shadows.wgsl"
 @group(1) @binding(0) var<uniform> uLocalUniforms: LocalUniforms;
 @group(2) @binding(0) var<storage, read> uInstanceUniforms: InstanceUniforms;
 @group(3) @binding(0) var defaultSampler: sampler;
@@ -48,17 +49,15 @@ struct InstanceUniforms
 
 @fragment fn fragmentMain(in: VertexOutput) -> @location(0) vec4f 
 {
-    let lightPosition = vec3f(100.0, 100.0, 100.0);
-    let lightDir = normalize(lightPosition - in.worldPosition);
-
-    let NdotL = dot(in.worldNormal, lightDir);
-
-    var diffuseStrength = max(NdotL, 0.0);
+    let normal = normalize(in.worldNormal);
+    let NdotL = dot(normal, normalize(uGlobalUniforms.directionalLightDirection.xyz));
+    let lightColor = uGlobalUniforms.directionalLightColor.rgb;
+    let diffuse = lightColor * max(NdotL, 0.0) * sampleShadow(in.worldPosition, normal);
     let ambientLight = vec3f(0.12, 0.42, 0.42);
     let ambientStrength = vec3f(0.1);
 
 
     let objectColor = textureSample(baseTexture, defaultSampler, in.uv).rgb;
     //return vec4f(in.worldNormal, 1.0);
-    return vec4f(ambientLight * ambientStrength + objectColor * diffuseStrength, 1);
+    return vec4f(ambientLight * ambientStrength + objectColor * diffuse, 1);
 }

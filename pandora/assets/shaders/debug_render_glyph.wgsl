@@ -12,7 +12,7 @@ struct VertexOutput
     @location(2) uv: vec2f
 };
 
-@group(0) @binding(0) var<uniform> uGlobalUniforms: GlobalUniforms;
+#include "/shaders/pandora/globals.wgsl"
 @group(1) @binding(0) var glyphTexture: texture_2d<f32>;
 @group(1) @binding(1) var glyphSampler: sampler;
 

@@ -36,12 +36,7 @@ struct VertexOutput
     return out;
 }
 
-fn hash33(p: vec3f) -> vec3f
-{
-    var p3 = fract(p * vec3f(0.1031, 0.1030, 0.0973));
-    p3 += dot(p3, p3.yxz + 33.33);
-    return fract((p3.xxy + p3.yxx) * p3.zyx);
-}
+#include "/shaders/common/hash.wgsl"
 
 fn gradient(cell: vec3f) -> vec3f
 {
@@ -141,20 +136,7 @@ fn nebula(d: vec3f) -> vec3f
     return color + floorColor;
 }
 
-// The direction through a texel of a cubemap face, with st in [0, 1] and t growing down the face.
-fn faceDirection(face: u32, st: vec2f) -> vec3f
-{
-    let sc = st * 2.0 - 1.0;
-    switch face
-    {
-        case 0u: { return vec3f(1.0, -sc.y, -sc.x); }
-        case 1u: { return vec3f(-1.0, -sc.y, sc.x); }
-        case 2u: { return vec3f(sc.x, 1.0, sc.y); }
-        case 3u: { return vec3f(sc.x, -1.0, -sc.y); }
-        case 4u: { return vec3f(sc.x, -sc.y, 1.0); }
-        default: { return vec3f(-sc.x, -sc.y, -1.0); }
-    }
-}
+#include "/shaders/common/cubemap.wgsl"
 
 @fragment fn fragmentMain(in: VertexOutput) -> @location(0) vec4f
 {

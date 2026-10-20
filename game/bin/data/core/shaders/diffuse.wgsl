@@ -18,7 +18,7 @@ struct InstanceUniforms
     transform: array<mat4x4<f32>>
 };
 
-@group(0) @binding(0) var<uniform> uGlobalUniforms: GlobalUniforms;
+#include "/shaders/pandora/globals.wgsl"
 @group(1) @binding(0) var<uniform> uLocalUniforms: LocalUniforms;
 @group(2) @binding(0) var<storage, read> uInstanceUniforms: InstanceUniforms;
 

@@ -41,7 +41,7 @@ struct DynamicUniformsArray {
 // Hexagon pattern constants
 const hexS = vec2f(1.0, 1.7320508); // sqrt(3)
 
-@group(0) @binding(0) var<uniform> uGlobalUniforms: GlobalUniforms;
+#include "/shaders/pandora/globals.wgsl"
 @group(1) @binding(0) var<uniform> uLocalUniforms: LocalUniforms;
 @group(2) @binding(0) var<storage, read> uInstanceUniforms: InstanceUniforms;
 @group(3) @binding(0) var defaultSampler: sampler;

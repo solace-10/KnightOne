@@ -17,3 +17,4 @@ compile_commands.json
 webapp/build/
 webapp/static/game.js
 webapp/static/game.wasm
+game/bin/data/core/*/pandora/
