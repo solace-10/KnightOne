@@ -1,0 +1,76 @@
+#pragma once
+
+#include <optional>
+
+#include <webgpu/webgpu_cpp.h>
+
+#include <core/signal.hpp>
+#include <imgui/idebugui.hpp>
+#include <render/pass/pass.hpp>
+#include <resources/resource_shader.hpp>
+
+namespace WingsOfSteel
+{
+
+// Light shafts through a sphere of dust around the camera's target, cut by the directional light's
+// shadow map. Ray marched at a fraction of the window's resolution, then upsampled and blended into
+// the scene's HDR colour, so it is bloomed and tonemapped with everything else. Must run after
+// BaseRenderPass, whose depth it reads.
+DECLARE_SMART_PTR(VolumetricRenderPass);
+class VolumetricRenderPass : public Pass, public IDebugUI
+{
+public:
+    VolumetricRenderPass();
+    ~VolumetricRenderPass() override;
+
+    void Execute(wgpu::CommandEncoder& encoder) override;
+    void DrawDebugUI() override;
+
+private:
+    enum class View
+    {
+        Composite,
+        Scatter,
+        Transmittance,
+        Off
+    };
+
+    void CreateNoiseTexture();
+    void CreateRenderPipelines();
+    void UpdateMarchTexture();
+
+    ResourceShaderSharedPtr m_pMarchShader;
+    ResourceShaderSharedPtr m_pCompositeShader;
+    std::optional<SignalId> m_ShaderInjectionSignalId;
+    wgpu::RenderPipeline m_MarchPipeline;
+    wgpu::RenderPipeline m_CompositePipeline;
+    wgpu::BindGroupLayout m_MarchBindGroupLayout;
+    wgpu::Buffer m_MarchSettingsBuffer;
+    wgpu::Buffer m_CompositeSettingsBuffer;
+    wgpu::Texture m_NoiseTexture;
+    wgpu::TextureView m_NoiseTextureView;
+    wgpu::Sampler m_NoiseSampler;
+    wgpu::Texture m_MarchTexture;
+    wgpu::TextureView m_MarchTextureView;
+    uint32_t m_Frame{ 0 };
+
+    View m_View{ View::Composite };
+    int m_StepCount{ 32 };
+    int m_ResolutionDivisor{ 2 };
+    bool m_Jitter{ true };
+    bool m_AnimateJitter{ false }; // Only settles into a smooth result once temporal accumulation averages it.
+    float m_Extinction{ 0.012f };
+    float m_Clumpiness{ 0.55f };
+    float m_LargeNoiseScale{ 0.012f };
+    float m_SmallNoiseScale{ 0.045f };
+    float m_Wind[3]{ 0.004f, 0.0012f, -0.003f };
+    float m_Anisotropy{ 0.7f };
+    float m_ScatterIntensity{ 8.0f };
+    float m_AmbientIntensity{ 0.05f };
+    float m_RadiusFraction{ 1.0f }; // Of the shadow map's radius, beyond which there are no shadows to cut shafts.
+    float m_EdgeFalloff{ 14.0f };
+    int m_CelBands{ 0 };
+    bool m_ShowVolume{ false };
+};
+
+} // namespace WingsOfSteel

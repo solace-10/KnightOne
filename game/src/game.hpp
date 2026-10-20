@@ -8,6 +8,7 @@ namespace WingsOfSteel
 {
 
 DECLARE_SMART_PTR(Sector);
+DECLARE_SMART_PTR(VolumetricRenderPass);
 
 class Game
 {
@@ -29,6 +30,7 @@ private:
 
     SceneSharedPtr m_pMenuScene;
     SectorSharedPtr m_pSector;
+    VolumetricRenderPassSharedPtr m_pVolumetricRenderPass;
 };
 
 inline Sector* Game::GetSector()

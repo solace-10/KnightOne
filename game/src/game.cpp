@@ -24,6 +24,7 @@
 #include "systems/projectile_render_system.hpp"
 #include "systems/skybox_render_system.hpp"
 #include "render_pass/threat_indicator_render_pass.hpp"
+#include "render_pass/volumetric_render_pass.hpp"
 
 namespace WingsOfSteel
 {
@@ -68,6 +69,8 @@ void Game::Initialize()
     });
     pRenderSystem->AddPass(std::make_shared<ShadowPass>());
     pRenderSystem->AddPass(pBaseRenderPass);
+    m_pVolumetricRenderPass = std::make_shared<VolumetricRenderPass>();
+    pRenderSystem->AddPass(m_pVolumetricRenderPass);
     pRenderSystem->AddPass(std::make_shared<ThreatIndicatorRenderPass>());
     pRenderSystem->AddPass(std::make_shared<PresentPass>());
     pRenderSystem->AddPass(std::make_shared<UIRenderPass>());
@@ -88,6 +91,8 @@ void Game::Update(float delta)
 
 void Game::Shutdown()
 {
+    // The game is static, so it would otherwise hold the pass's GPU objects past the device's lifetime.
+    m_pVolumetricRenderPass.reset();
 }
 
 // The debug UI needs a free cursor, which on web means releasing the pointer lock.
@@ -143,6 +148,12 @@ void Game::DrawImGuiMenuBar()
                 {
                     pSkyboxRenderSystem->ShowDebugUI(showDebugUI);
                 }
+            }
+
+            bool showVolumetrics = m_pVolumetricRenderPass->IsDebugUIVisible();
+            if (ImGui::MenuItem("Volumetrics", nullptr, &showVolumetrics))
+            {
+                m_pVolumetricRenderPass->ShowDebugUI(showVolumetrics);
             }
 
             AmmoSystem* pAmmoSystem = m_pSector->GetSystem<AmmoSystem>();
