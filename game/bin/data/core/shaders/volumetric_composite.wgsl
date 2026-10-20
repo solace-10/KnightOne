@@ -8,9 +8,7 @@ struct Settings
     nearPlane: f32,
     farPlane: f32,
     // 0: composite, 1: scattered light only, 2: transmittance only.
-    mode: u32,
-    // Quantizes the scattered light into this many bands; 0 leaves it smooth.
-    celBands: f32
+    mode: u32
 };
 
 @group(0) @binding(0) var<uniform> settings: Settings;
@@ -53,28 +51,13 @@ fn upsample(uv: vec2f, pixel: vec2u) -> vec4f
     return sum / weightSum;
 }
 
-// Bands the scattered light's luminance after a soft exponential curve, so that the bands are evenly
-// spaced in how bright they look rather than in linear light.
-fn celify(scattered: vec3f, bands: f32) -> vec3f
-{
-    let luminance = dot(scattered, vec3f(0.2126, 0.7152, 0.0722));
-    if (luminance < 1e-5)
-    {
-        return scattered;
-    }
-    let curved = 1.0 - exp(-luminance * 1.5);
-    let banded = min(floor(curved * bands + 0.35) / bands, 0.985);
-    return scattered * ((-log(1.0 - banded) / 1.5) / luminance);
-}
-
 @fragment fn compositeMain(in: VertexOutput) -> @location(0) vec4f
 {
     let volume = upsample(in.uv, vec2u(in.position.xy));
-    let scattered = select(volume.rgb, celify(volume.rgb, settings.celBands), settings.celBands > 0.0);
     switch settings.mode
     {
-        case 1u: { return vec4f(scattered, 0.0); }
+        case 1u: { return vec4f(volume.rgb, 0.0); }
         case 2u: { return vec4f(vec3f(volume.a), 0.0); }
-        default: { return vec4f(scattered, volume.a); }
+        default: { return volume; }
     }
 }

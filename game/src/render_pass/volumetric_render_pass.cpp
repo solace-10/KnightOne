@@ -63,7 +63,6 @@ namespace
         float nearPlane;
         float farPlane;
         uint32_t mode;
-        float celBands;
     };
 
 } // namespace
@@ -461,8 +460,7 @@ void VolumetricRenderPass::Execute(wgpu::CommandEncoder& encoder)
     const CompositeSettings compositeSettings{
         .nearPlane = camera.GetNearPlane(),
         .farPlane = camera.GetFarPlane(),
-        .mode = static_cast<uint32_t>(m_View),
-        .celBands = static_cast<float>(m_CelBands)
+        .mode = static_cast<uint32_t>(m_View)
     };
     wgpu::Device device = GetRenderSystem()->GetDevice();
     device.GetQueue().WriteBuffer(m_MarchSettingsBuffer, 0, &marchSettings, sizeof(marchSettings));
@@ -611,10 +609,6 @@ void VolumetricRenderPass::DrawDebugUI()
         ImGui::SliderFloat("Radius (of shadow radius)", &m_RadiusFraction, 0.1f, 1.0f);
         ImGui::SliderFloat("Edge falloff (m)", &m_EdgeFalloff, 0.1f, 100.0f);
         ImGui::TextDisabled("Centred on the camera's target. Shadow radius: %.0f m", GetRenderSystem()->GetLightingSystem()->GetShadowRadius());
-
-        ImGui::SeparatorText("Style");
-        ImGui::SliderInt("Cel bands", &m_CelBands, 0, 8);
-        ImGui::SetItemTooltip("0 leaves the scattered light smooth.");
     }
     ImGui::End();
 }

@@ -96,7 +96,6 @@ private:
     float m_AmbientIntensity{ 0.05f };
     float m_RadiusFraction{ 1.0f }; // Of the shadow map's radius, beyond which there are no shadows to cut shafts.
     float m_EdgeFalloff{ 14.0f };
-    int m_CelBands{ 0 };
     bool m_ShowVolume{ false };
     bool m_ShowShadowDirections{ false };
     bool m_ShowShadowMap{ false };
