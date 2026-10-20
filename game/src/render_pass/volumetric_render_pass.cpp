@@ -5,10 +5,11 @@
 #include <vector>
 
 #include <FastNoiseLite.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
-#include <imgui.h>
+#include <imgui/imgui.hpp>
 
 #include <pandora.hpp>
 #include <render/debug_render.hpp>
@@ -17,6 +18,9 @@
 #include <render/window.hpp>
 #include <resources/resource_system.hpp>
 #include <scene/components/camera_component.hpp>
+#include <scene/components/directional_light_component.hpp>
+#include <scene/components/model_component.hpp>
+#include <scene/components/transform_component.hpp>
 #include <scene/scene.hpp>
 
 namespace WingsOfSteel
@@ -34,22 +38,24 @@ namespace
     struct MarchSettings
     {
         glm::mat4 inverseViewProjection;
-        glm::vec3 volumeCenter;
+        glm::mat4 shadowViewProjection;
+        glm::vec3 towardsLight;
         float volumeRadius;
-        glm::vec3 wind;
+        glm::vec3 lightColor;
         float extinction;
-        glm::vec2 noiseScales;
+        glm::vec3 volumeCenter;
         float edgeFalloff;
+        glm::vec3 wind;
         float clumpiness;
+        glm::vec2 noiseScales;
         float anisotropy;
         float scatterIntensity;
         float ambientIntensity;
         float stepCount;
         float jitter;
         float frame;
-        glm::vec2 padding;
     };
-    static_assert(sizeof(MarchSettings) == 144);
+    static_assert(sizeof(MarchSettings) == 224);
 
     // Mirrors Settings in volumetric_composite.wgsl.
     struct CompositeSettings
@@ -81,7 +87,7 @@ VolumetricRenderPass::VolumetricRenderPass()
     };
     m_CompositeSettingsBuffer = device.CreateBuffer(&compositeBufferDescriptor);
 
-    std::array<wgpu::BindGroupLayoutEntry, 4> layoutEntries = {
+    std::array<wgpu::BindGroupLayoutEntry, 6> layoutEntries = {
         wgpu::BindGroupLayoutEntry{
             .binding = 0,
             .visibility = wgpu::ShaderStage::Fragment,
@@ -104,7 +110,17 @@ VolumetricRenderPass::VolumetricRenderPass()
             .binding = 3,
             .visibility = wgpu::ShaderStage::Fragment,
             .sampler{
-                .type = wgpu::SamplerBindingType::Filtering } }
+                .type = wgpu::SamplerBindingType::Filtering } },
+        wgpu::BindGroupLayoutEntry{
+            .binding = 4,
+            .visibility = wgpu::ShaderStage::Fragment,
+            .texture{
+                .sampleType = wgpu::TextureSampleType::Depth } },
+        wgpu::BindGroupLayoutEntry{
+            .binding = 5,
+            .visibility = wgpu::ShaderStage::Fragment,
+            .sampler{
+                .type = wgpu::SamplerBindingType::Comparison } }
     };
     wgpu::BindGroupLayoutDescriptor bindGroupLayoutDescriptor{
         .label = "Volumetric march",
@@ -114,6 +130,15 @@ VolumetricRenderPass::VolumetricRenderPass()
     m_MarchBindGroupLayout = device.CreateBindGroupLayout(&bindGroupLayoutDescriptor);
 
     CreateNoiseTexture();
+
+    // Linear filtering on a comparison sampler blends the results of four comparisons: 2x2 PCF.
+    wgpu::SamplerDescriptor shadowSamplerDescriptor{
+        .label = "Volumetric shadow sampler",
+        .magFilter = wgpu::FilterMode::Linear,
+        .minFilter = wgpu::FilterMode::Linear,
+        .compare = wgpu::CompareFunction::LessEqual
+    };
+    m_ShadowSampler = device.CreateSampler(&shadowSamplerDescriptor);
 
     GetResourceSystem()->RequestResources({ kMarchShaderPath, kCompositeShaderPath }, [this](const std::unordered_map<std::string, ResourceSharedPtr>& resources) {
         m_pMarchShader = std::dynamic_pointer_cast<ResourceShader>(resources.at(kMarchShaderPath));
@@ -282,6 +307,98 @@ void VolumetricRenderPass::UpdateMarchTexture()
     m_MarchTextureView = m_MarchTexture.CreateView();
 }
 
+// The override's shadow map, recreated whenever its size changes. Its ShadowPass isn't added to the
+// RenderSystem: Execute() runs it, only while the override is on.
+void VolumetricRenderPass::UpdateOverrideShadowMap()
+{
+    const uint32_t size = static_cast<uint32_t>(m_OverrideShadowMapSize);
+    if (m_OverrideShadowMap && m_OverrideShadowMap.GetWidth() == size)
+    {
+        return;
+    }
+
+    wgpu::TextureDescriptor textureDescriptor{
+        .label = "Volumetric shadow map",
+        .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
+        .size{ .width = size, .height = size },
+        .format = wgpu::TextureFormat::Depth32Float
+    };
+    m_OverrideShadowMap = GetRenderSystem()->GetDevice().CreateTexture(&textureDescriptor);
+    m_OverrideShadowMapView = m_OverrideShadowMap.CreateView();
+    m_pOverrideShadowPass = std::make_unique<ShadowPass>("Volumetric shadow pass", m_OverrideShadowMapView);
+}
+
+// The same mapping as DirectionalLightComponent's, from its angle and pitch to the direction towards
+// the light.
+glm::vec3 VolumetricRenderPass::GetOverrideDirection() const
+{
+    const float angle = glm::radians(m_OverrideAngle);
+    const float pitch = glm::radians(m_OverridePitch);
+    return glm::normalize(glm::vec3(-glm::sin(angle) * glm::cos(pitch), glm::sin(pitch), -glm::cos(angle) * glm::cos(pitch)));
+}
+
+VolumetricRenderPass::Light VolumetricRenderPass::GetLight(const glm::vec3& volumeCenter, float volumeRadius) const
+{
+    if (m_OverrideLight)
+    {
+        const glm::vec3 towardsLight = GetOverrideDirection();
+        return Light{
+            .towardsLight = towardsLight,
+            .color = m_OverrideColor,
+            .shadowViewProjection = LightingSystem::CalculateShadowViewProjection(volumeCenter, towardsLight, volumeRadius, static_cast<uint32_t>(m_OverrideShadowMapSize)),
+            .shadowMap = m_OverrideShadowMapView
+        };
+    }
+
+    const LightingSystem* pLightingSystem = GetRenderSystem()->GetLightingSystem();
+    const DirectionalLight& directionalLight = pLightingSystem->GetDirectionalLight();
+    return Light{
+        .towardsLight = directionalLight.Direction,
+        .color = directionalLight.Color * directionalLight.Intensity,
+        .shadowViewProjection = pLightingSystem->GetShadowViewProjection(),
+        .shadowMap = GetRenderSystem()->GetShadowMapView()
+    };
+}
+
+// The pass whose shadow map the shafts sample.
+ShadowPass* VolumetricRenderPass::GetShadowPass() const
+{
+    if (m_OverrideLight)
+    {
+        return m_pOverrideShadowPass.get();
+    }
+    return dynamic_cast<ShadowPass*>(GetRenderSystem()->GetPass("Shadow pass").get());
+}
+
+// A line from every model, away from the light: the direction of its shadow. Shadows are parallel,
+// so in perspective these converge on a vanishing point, as the shafts should.
+void VolumetricRenderPass::DrawShadowDirections(const glm::vec3& towardsLight, float length) const
+{
+    GetActiveScene()->GetRegistry().view<ModelComponent, TransformComponent>().each([&towardsLight, length](const auto entity, ModelComponent& modelComponent, TransformComponent& transformComponent) {
+        const glm::vec3 position(transformComponent.transform[3]);
+        GetDebugRender()->Line(position, position - towardsLight * length, Color::Yellow);
+    });
+}
+
+// Starts the override from the directional light, so that turning it on changes nothing until a
+// slider moves.
+void VolumetricRenderPass::StartOverride()
+{
+    const DirectionalLight& directionalLight = GetRenderSystem()->GetLightingSystem()->GetDirectionalLight();
+    m_OverrideAngle = directionalLight.Angle;
+    m_OverridePitch = directionalLight.Pitch;
+    m_OverrideColor = directionalLight.Color * directionalLight.Intensity;
+}
+
+void VolumetricRenderPass::ApplyOverrideToLight() const
+{
+    auto view = GetActiveScene()->GetRegistry().view<DirectionalLightComponent>();
+    view.each([this](const auto entity, DirectionalLightComponent& directionalLightComponent) {
+        directionalLightComponent.SetAngle(m_OverrideAngle);
+        directionalLightComponent.SetPitch(m_OverridePitch);
+    });
+}
+
 void VolumetricRenderPass::Execute(wgpu::CommandEncoder& encoder)
 {
     if (IsDebugUIVisible())
@@ -297,23 +414,43 @@ void VolumetricRenderPass::Execute(wgpu::CommandEncoder& encoder)
     }
 
     UpdateMarchTexture();
+    if (m_OverrideLight)
+    {
+        UpdateOverrideShadowMap();
+    }
 
     Camera& camera = pCamera->GetComponent<CameraComponent>().camera;
-    const float radius = m_RadiusFraction * GetRenderSystem()->GetLightingSystem()->GetShadowRadius();
+    const glm::vec3 volumeCenter = camera.GetTarget();
+    const float volumeRadius = m_RadiusFraction * GetRenderSystem()->GetLightingSystem()->GetShadowRadius();
+    const Light light = GetLight(volumeCenter, volumeRadius);
+
     if (m_ShowVolume)
     {
-        GetDebugRender()->Sphere(camera.GetTarget(), Color::Cyan, radius);
+        GetDebugRender()->Sphere(volumeCenter, Color::Cyan, volumeRadius);
+    }
+    if (m_ShowShadowDirections)
+    {
+        DrawShadowDirections(light.towardsLight, 2.0f * volumeRadius);
+    }
+
+    if (m_OverrideLight)
+    {
+        m_pOverrideShadowPass->SetViewProjection(light.shadowViewProjection);
+        m_pOverrideShadowPass->Execute(encoder);
     }
 
     const MarchSettings marchSettings{
         .inverseViewProjection = glm::inverse(camera.GetProjectionMatrix() * camera.GetViewMatrix()),
-        .volumeCenter = camera.GetTarget(),
-        .volumeRadius = radius,
-        .wind = glm::vec3(m_Wind[0], m_Wind[1], m_Wind[2]),
+        .shadowViewProjection = light.shadowViewProjection,
+        .towardsLight = light.towardsLight,
+        .volumeRadius = volumeRadius,
+        .lightColor = light.color,
         .extinction = m_Extinction,
-        .noiseScales = glm::vec2(m_LargeNoiseScale, m_SmallNoiseScale),
+        .volumeCenter = volumeCenter,
         .edgeFalloff = m_EdgeFalloff,
+        .wind = glm::vec3(m_Wind[0], m_Wind[1], m_Wind[2]),
         .clumpiness = m_Clumpiness,
+        .noiseScales = glm::vec2(m_LargeNoiseScale, m_SmallNoiseScale),
         .anisotropy = m_Anisotropy,
         .scatterIntensity = m_ScatterIntensity,
         .ambientIntensity = m_AmbientIntensity,
@@ -333,11 +470,13 @@ void VolumetricRenderPass::Execute(wgpu::CommandEncoder& encoder)
 
     // Rebuilt every frame, as resizing the window replaces its textures.
     wgpu::TextureView& depthView = GetWindow()->GetDepthTexture().GetTextureView();
-    std::array<wgpu::BindGroupEntry, 4> marchEntries = {
+    std::array<wgpu::BindGroupEntry, 6> marchEntries = {
         wgpu::BindGroupEntry{ .binding = 0, .buffer = m_MarchSettingsBuffer, .size = sizeof(MarchSettings) },
         wgpu::BindGroupEntry{ .binding = 1, .textureView = depthView },
         wgpu::BindGroupEntry{ .binding = 2, .textureView = m_NoiseTextureView },
-        wgpu::BindGroupEntry{ .binding = 3, .sampler = m_NoiseSampler }
+        wgpu::BindGroupEntry{ .binding = 3, .sampler = m_NoiseSampler },
+        wgpu::BindGroupEntry{ .binding = 4, .textureView = light.shadowMap },
+        wgpu::BindGroupEntry{ .binding = 5, .sampler = m_ShadowSampler }
     };
     wgpu::BindGroupDescriptor marchBindGroupDescriptor{
         .layout = m_MarchBindGroupLayout,
@@ -404,6 +543,8 @@ void VolumetricRenderPass::DrawDebugUI()
             m_View = static_cast<View>(view);
         }
         ImGui::Checkbox("Show volume", &m_ShowVolume);
+        ImGui::Checkbox("Show shadow directions", &m_ShowShadowDirections);
+        ImGui::SetItemTooltip("A line from every model, away from the light. Parallel, so in perspective they converge.");
 
         ImGui::SeparatorText("March");
         ImGui::SliderInt("Steps per ray", &m_StepCount, 4, 128);
@@ -431,7 +572,40 @@ void VolumetricRenderPass::DrawDebugUI()
         ImGui::SeparatorText("Light");
         ImGui::SliderFloat("Scatter intensity", &m_ScatterIntensity, 0.0f, 64.0f);
         ImGui::SliderFloat("Ambient intensity", &m_AmbientIntensity, 0.0f, 8.0f);
-        ImGui::TextDisabled("Direction and colour follow the directional light.");
+        if (ImGui::Checkbox("Override light", &m_OverrideLight) && m_OverrideLight)
+        {
+            StartOverride();
+        }
+        ImGui::SetItemTooltip("Moves the light the shafts come from, and their shadows, without changing the scene's lighting.");
+        if (m_OverrideLight)
+        {
+            ImGui::SliderFloat("Angle", &m_OverrideAngle, 0.0f, 360.0f);
+            ImGui::SliderFloat("Pitch", &m_OverridePitch, -90.0f, 90.0f);
+            ImGui::ColorEdit3("Colour", &m_OverrideColor.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+            int shadowMapSize = m_OverrideShadowMapSize == 512 ? 0 : (m_OverrideShadowMapSize == 1024 ? 1 : 2);
+            if (ImGui::Combo("Shadow map size", &shadowMapSize, "512\0"
+                                                                "1024\0"
+                                                                "2048\0"))
+            {
+                m_OverrideShadowMapSize = 512 << shadowMapSize;
+            }
+            if (ImGui::Button("Apply direction to light"))
+            {
+                ApplyOverrideToLight();
+            }
+            ImGui::SetItemTooltip("Moves the scene's directional light to the override's angle and pitch.");
+        }
+        else
+        {
+            ImGui::TextDisabled("Direction and colour follow the directional light.");
+        }
+
+        ImGui::Checkbox("Show shadow map", &m_ShowShadowMap);
+        ShadowPass* pShadowPass = GetShadowPass();
+        if (m_ShowShadowMap && pShadowPass)
+        {
+            ImGui::Image(pShadowPass->RequestDebugView(), ImVec2(256, 256));
+        }
 
         ImGui::SeparatorText("Volume");
         ImGui::SliderFloat("Radius (of shadow radius)", &m_RadiusFraction, 0.1f, 1.0f);
