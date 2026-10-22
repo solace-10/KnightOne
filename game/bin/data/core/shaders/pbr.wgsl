@@ -169,16 +169,11 @@ fn environmentBRDF(F0: vec3f, roughness: f32, NdotV: f32) -> vec3f
     let emissive = textureSample(emissiveTexture, defaultSampler, in.uv).rgb;
 
     // Compute TBN matrix and transform normal to world space
-    //let TBN = computeTBNScreenSpace(in.worldPosition, in.worldNormal, in.uv);
     let TBN = computeTBN(in.worldNormal, in.worldTangent);
     let N = normalize(TBN * tangentNormal);
 
     // View and light directions
     let V = normalize(uGlobalUniforms.cameraPosition.xyz - in.worldPosition);
-    
-    // Original: why is the light direction flipped?
-    //let L = normalize(-uGlobalUniforms.directionalLightDirection.xyz);
-    
     let L = normalize(uGlobalUniforms.directionalLightDirection.xyz);
     let H = normalize(V + L);
 
@@ -212,24 +207,12 @@ fn environmentBRDF(F0: vec3f, roughness: f32, NdotV: f32) -> vec3f
 
     // Ambient lighting with occlusion. The specular half reads the SH in the reflection direction,
     // which is only as sharp as the SH are, so glossy surfaces reflect a very blurred sky.
-    // ponytail: cheap ambient specular; a GGX-prefiltered cubemap (split-sum IBL) once glossy metals need it.
     let ambientSpecular = environmentBRDF(F0, roughness, NdotV);
     let ambientDiffuse = (vec3f(1.0) - ambientSpecular) * (1.0 - metallic) * baseColor;
     let R = reflect(-V, N);
     let ambient = (ambientDiffuse * ambientSH(N) + ambientSpecular * ambientSH(R)) * ao;
 
     // Final color: ambient + direct lighting + emissive
-    let color = ambient + Lo + emissive;
-
-	//return vec4f(metallic, metallic, metallic, 1.0);
-	//return vec4f(roughness, roughness, roughness, 1.0);
-	//return vec4f(baseColor, 1.0);
-	//return vec4f(uGlobalUniforms.ambientLightColor.rgb, 1.0);
-	//return vec4f(NdotL, NdotL, NdotL, 1.0);
-
-    //return vec4f(color, baseColorSRGB.a);
-    
-    //return vec4f(ambient.rgb, 1.0);
-    
+    let color = ambient + Lo + emissive;  
     return vec4f(color, 1.0);
 }
