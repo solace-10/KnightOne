@@ -84,8 +84,6 @@ void LightingSystem::UpdateShadowViewProjection()
 // An orthographic projection from the light, covering a sphere. A sphere keeps the covered area the
 // same size however the camera turns, and snapping it to whole texels stops the shadows' edges from
 // crawling as the camera moves.
-// ponytail: a single map sized for Knight-One's fixed camera distance; cascades if a game needs
-// shadows far from its camera's target.
 glm::mat4 LightingSystem::CalculateShadowViewProjection(const glm::vec3& center, const glm::vec3& towardsLight, float radius, uint32_t mapSize)
 {
     const glm::vec3 up = std::abs(towardsLight.y) > 0.99f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(0.0f, 1.0f, 0.0f);

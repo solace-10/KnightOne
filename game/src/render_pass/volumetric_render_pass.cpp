@@ -164,7 +164,6 @@ VolumetricRenderPass::~VolumetricRenderPass()
 
 // FastNoiseLite's noise doesn't tile, so the sampler mirrors it instead: the seams are continuous,
 // and with two octaves at unrelated scales the mirroring is hard to spot.
-// ponytail: mirrored rather than tileable noise; blend offset copies if the symmetry ever shows.
 void VolumetricRenderPass::CreateNoiseTexture()
 {
     FastNoiseLite noise;
