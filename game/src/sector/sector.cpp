@@ -1,6 +1,7 @@
 #include <imgui.h>
 
 #include <core/log.hpp>
+#include <core/serialization.hpp>
 #include <pandora.hpp>
 #include <physics/collision_shape.hpp>
 #include <render/debug_render.hpp>
@@ -54,7 +55,7 @@ Sector::~Sector()
 {
 }
 
-void Sector::Initialize()
+void Sector::Initialize(ResourceDataStoreSharedPtr pSectorInfo)
 {
     Scene::Initialize();
 
@@ -90,8 +91,8 @@ void Sector::Initialize()
     sectorCameraComponent.maximumDrift = glm::vec3(0.0f, 0.0f, 0.0f);
     SetCamera(m_pCamera);
 
-    SpawnSkybox();
-    SpawnLight();
+    SpawnSkybox(pSectorInfo.get());
+    SpawnLight(pSectorInfo.get());
     SpawnPlayerFleet();
 
     m_pEncounter = std::make_unique<Encounter>();
@@ -150,23 +151,40 @@ void Sector::DrawCameraDebugUI()
     ImGui::End();
 }
 
-void Sector::SpawnSkybox()
+void Sector::SpawnSkybox(const ResourceDataStore* pSectorInfo)
 {
+    const Result<Json::DeserializationError, std::string> skybox = Json::TryDeserializeString(pSectorInfo, pSectorInfo->Data(), "skybox");
+    if (!skybox.has_value())
+    {
+        Log::Warning() << pSectorInfo->GetPath() << ": no skybox defined.";
+        return;
+    }
+
     SceneWeakPtr pWeakScene = GetWeakPtr();
-    EntityBuilder::Build(pWeakScene, "/entity_prefabs/skyboxes/ember_reach.json", glm::mat4(1.0f), [](EntitySharedPtr pEntity) {});
+    EntityBuilder::Build(pWeakScene, skybox.value(), glm::mat4(1.0f), [](EntitySharedPtr pEntity) {});
 }
 
-void Sector::SpawnLight()
+void Sector::SpawnLight(const ResourceDataStore* pSectorInfo)
 {
     m_pLight = CreateEntity();
 
-    DirectionalLightComponent& directionalLightComponent = m_pLight->AddComponent<DirectionalLightComponent>();
-    directionalLightComponent.SetAngle(226.0f);
-    directionalLightComponent.SetPitch(40.0f);
-    directionalLightComponent.SetColor(1.0f, 0.96f, 0.68f);
+    const Json::Data& data = pSectorInfo->Data();
 
-    AmbientLightComponent& ambientLightComponent = m_pLight->AddComponent<AmbientLightComponent>();
-    ambientLightComponent.SetColor(0.10f, 0.14f, 0.17f);    
+    const auto directionalLightObject = Json::DeserializeObject(pSectorInfo, data, "directional_light");
+    if (directionalLightObject.has_value())
+    {
+        DirectionalLightComponent& directionalLightComponent = m_pLight->AddComponent<DirectionalLightComponent>();
+        directionalLightComponent.SetAngle(Json::DeserializeFloat(pSectorInfo, directionalLightObject.value(), "angle"));
+        directionalLightComponent.SetPitch(Json::DeserializeFloat(pSectorInfo, directionalLightObject.value(), "pitch"));
+        directionalLightComponent.SetColor(Json::DeserializeVec3(pSectorInfo, directionalLightObject.value(), "color"));
+    }
+
+    const auto ambientLightObject = Json::DeserializeObject(pSectorInfo, data, "ambient_light");
+    if (ambientLightObject.has_value())
+    {
+        AmbientLightComponent& ambientLightComponent = m_pLight->AddComponent<AmbientLightComponent>();
+        ambientLightComponent.SetColor(Json::DeserializeVec3(pSectorInfo, ambientLightObject.value(), "color"));
+    }
 }
 
 void Sector::SpawnPlayerFleet()

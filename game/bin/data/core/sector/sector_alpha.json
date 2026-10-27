@@ -1,0 +1,23 @@
+{
+	"ambient_light": {
+		"color": [0.1, 0.14, 0.17]
+	},
+	"directional_light": {
+		"angle": 226,
+		"pitch": 25,
+		"color": [1.0, 0.96, 0.68]
+	},
+	"skybox": "/entity_prefabs/skyboxes/ember_reach.json",
+	"volumetrics": {
+		"medium": {
+			"extinction": 0.012,
+			"clumpiness": 0.55,
+			"anisotropy": 0.7
+		},
+		"light": {
+			"scatter_intensity": 8.0,
+			"ambient_intensity": 0.05,
+			"color": [1.0, 0.96, 0.68]
+		}
+	}
+}

@@ -4,6 +4,7 @@
 
 #include <core/signal.hpp>
 #include <core/smart_ptr.hpp>
+#include <resources/resource.fwd.hpp>
 #include <scene/scene.hpp>
 
 #include "components/wing_component.hpp"
@@ -21,7 +22,7 @@ public:
     Sector();
     ~Sector();
 
-    void Initialize() override;
+    void Initialize(ResourceDataStoreSharedPtr pSectorInfo);
     void Update(float delta) override;
 
     void ShowCameraDebugUI(bool state);
@@ -35,8 +36,8 @@ public:
 
 private:
     void DrawCameraDebugUI();
-    void SpawnSkybox();
-    void SpawnLight();
+    void SpawnSkybox(const ResourceDataStore* pSectorInfo);
+    void SpawnLight(const ResourceDataStore* pSectorInfo);
     void SpawnPlayerFleet();
     void SpawnMech(const glm::vec3& position, float angle, bool isPlayerMech, WingRole role);
 

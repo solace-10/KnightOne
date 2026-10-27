@@ -9,6 +9,8 @@
 #include <render/pass/shadow_pass.hpp>
 #include <render/pass/ui_render_pass.hpp>
 #include <render/rendersystem.hpp>
+#include <resources/resource_data_store.hpp>
+#include <resources/resource_system.hpp>
 #include <scene/camera.hpp>
 #include <scene/entity.hpp>
 #include <scene/scene.hpp>
@@ -79,10 +81,11 @@ void Game::Initialize()
     GetInputSystem()->AddKeyboardCallback([this]() { ShowDebugUI(!GetImGuiSystem()->IsVisible()); }, GLFW_KEY_F1, KeyAction::Pressed);
     ShowDebugUI(false);
 
-    m_pSector = std::make_shared<Sector>();
-    m_pSector->Initialize();
-
-    SetActiveScene(m_pSector);
+    GetResourceSystem()->RequestResource("/sector/sector_alpha.json", [this](ResourceSharedPtr pResource) {
+        m_pSector = std::make_shared<Sector>();
+        m_pSector->Initialize(std::dynamic_pointer_cast<ResourceDataStore>(pResource));
+        SetActiveScene(m_pSector);
+    });
 }
 
 void Game::Update(float delta)
