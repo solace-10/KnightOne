@@ -1,27 +1,26 @@
-// Marches every view ray through a sphere of dust around the camera's target, asking a shadow map at
-// each step whether that point can see the light. Rendered at a fraction of the window's resolution
-// by VolumetricRenderPass; volumetric_composite.wgsl blends the result over the scene. Outputs the
-// light scattered towards the camera in rgb, and the transmittance in alpha.
+// Marches every view ray through a sphere of dust around the camera's target, asking the shadow map
+// at each step whether that point can see the directional light. Rendered at a fraction of the
+// window's resolution by VolumetricRenderPass; volumetric_composite.wgsl blends the result over the
+// scene. Outputs the light scattered towards the camera in rgb, and the transmittance in alpha.
 //
-// The light and its shadow map are the directional light's, or the debug UI's override, so they come
-// from the settings rather than the global uniforms.
+// The light's colour comes from the settings rather than the global uniforms, as the debug UI can
+// override it.
 
 #include "/shaders/pandora/globals.wgsl"
+#include "/shaders/pandora/shadows.wgsl"
 #include "/shaders/pandora/fullscreen_triangle.wgsl"
 
 struct Settings
 {
     inverseViewProjection: mat4x4<f32>,
-    shadowViewProjection: mat4x4<f32>, // World to shadowMap's clip space. Orthographic.
-    towardsLight: vec3f,
-    volumeRadius: f32,
     lightColor: vec3f,
-    extinction: f32, // Per world unit.
+    volumeRadius: f32,
     volumeCenter: vec3f,
-    edgeFalloff: f32, // In world units.
+    extinction: f32, // Per world unit.
     wind: vec3f,
-    clumpiness: f32,
+    edgeFalloff: f32, // In world units.
     noiseScales: vec2f, // Of the large and the small noise, in noise tiles per world unit.
+    clumpiness: f32,
     anisotropy: f32, // Henyey-Greenstein g.
     scatterIntensity: f32,
     ambientIntensity: f32,
@@ -34,21 +33,6 @@ struct Settings
 @group(1) @binding(1) var sceneDepth: texture_depth_multisampled_2d;
 @group(1) @binding(2) var noiseTexture: texture_3d<f32>;
 @group(1) @binding(3) var noiseSampler: sampler;
-@group(1) @binding(4) var shadowMap: texture_depth_2d;
-@group(1) @binding(5) var shadowSampler: sampler_comparison;
-
-// How much of the light reaches a point: a single 2x2 PCF tap, as this is sampled at every step.
-// Anything outside the shadow map is lit.
-fn lightVisibility(position: vec3f) -> f32
-{
-    let clip = settings.shadowViewProjection * vec4f(position, 1.0);
-    let uv = vec2f(clip.x * 0.5 + 0.5, 0.5 - clip.y * 0.5);
-    if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0)) || clip.z > 1.0)
-    {
-        return 1.0;
-    }
-    return textureSampleCompareLevel(shadowMap, shadowSampler, uv, clip.z);
-}
 
 // The near and far distances along the ray at which it crosses the sphere; far < near if it misses.
 fn raySphere(origin: vec3f, direction: vec3f) -> vec2f
@@ -113,7 +97,8 @@ fn density(position: vec3f) -> f32
 
     let stepLength = (end - start) / settings.stepCount;
     let offset = select(0.5, interleavedGradientNoise(in.position.xy + 5.588238 * settings.frame), settings.jitter > 0.5);
-    let phase = henyeyGreenstein(dot(rayDirection, settings.towardsLight), settings.anisotropy);
+    let toLight = normalize(uGlobalUniforms.directionalLightDirection.xyz);
+    let phase = henyeyGreenstein(dot(rayDirection, toLight), settings.anisotropy);
     let sun = settings.lightColor * settings.scatterIntensity * phase;
     // The SH's constant band: the ambient light averaged over every direction.
     let ambient = uGlobalUniforms.ambientSH[0].rgb * 0.282095 * settings.ambientIntensity;
@@ -129,7 +114,7 @@ fn density(position: vec3f) -> f32
             continue;
         }
 
-        let incoming = sun * lightVisibility(position) + ambient;
+        let incoming = sun * sampleShadowAt(position) + ambient;
         let stepTransmittance = exp(-sigma * stepLength);
         // The step's integral, with an albedo of 1: what it scatters is what it takes out.
         scattered += transmittance * incoming * (1.0 - stepTransmittance);

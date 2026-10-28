@@ -908,7 +908,7 @@ wgpu::RenderPipeline ResourceModel::CreateShadowPipeline(const tinygltf::Primiti
     };
 
     std::array<wgpu::BindGroupLayout, 3> bindGroupLayouts = {
-        GetRenderSystem()->GetShadowViewLayout(),
+        GetRenderSystem()->GetShadowGlobalUniformsLayout(),
         m_LocalUniformsBindGroupLayout,
         m_InstanceUniformsBindGroupLayout
     };
