@@ -202,7 +202,7 @@ with `GetRenderSystem()->AddPass()` and run in order via `Execute(wgpu::CommandE
 1. `ShadowPass` renders opaque models into the directional light's shadow map, which scene shaders
    sample with `sampleShadow()` from `/shaders/pandora/shadows.wgsl`.
 2. `BaseRenderPass` renders the scene in linear HDR into the window's scene texture
-   (`Window::GetSceneFormat()`, RGBA16Float). Scene shaders must output linear colour.
+   (`Window::GetSceneFormat()`, RGBA16Float). Scene shaders must output linear color.
 3. Game passes that need the scene's depth but must stay out of tonemapping (e.g.
    `ThreatIndicatorRenderPass`) draw into the overlay (`GetOverlayMsaaColorTexture()`, surface
    format, premultiplied) with a read-only depth attachment.

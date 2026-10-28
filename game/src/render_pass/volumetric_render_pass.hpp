@@ -15,10 +15,10 @@ namespace WingsOfSteel
 
 // Light shafts through a sphere of dust around the camera's target, cut by the directional light's
 // shadow map. Ray marched at a fraction of the window's resolution, then upsampled and blended into
-// the scene's HDR colour, so it is bloomed and tonemapped with everything else. Must run after
+// the scene's HDR color, so it is bloomed and tonemapped with everything else. Must run after
 // BaseRenderPass, whose depth it reads.
 //
-// The debug UI can override the shafts' colour without touching the scene's lighting.
+// The debug UI can override the shafts' color without touching the scene's lighting.
 DECLARE_SMART_PTR(VolumetricRenderPass);
 class VolumetricRenderPass : public Pass, public IDebugUI
 {

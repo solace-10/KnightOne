@@ -55,12 +55,12 @@ public:
     const AmbientLight& GetAmbientLight() const;
     const DirectionalLight& GetDirectionalLight() const;
 
-    // Replaces the ambient colour with light that varies with direction, such as a sky's. The
+    // Replaces the ambient color with light that varies with direction, such as a sky's. The
     // ambient intensity still scales it.
     void SetAmbientSH(const AmbientSH& ambientSH);
     void ClearAmbientSH();
 
-    // What shaders receive: the SH set above, or the ambient colour as a constant if there is none.
+    // What shaders receive: the SH set above, or the ambient color as a constant if there is none.
     AmbientSH GetAmbientSH() const;
 
     // In stops: the scene is scaled by 2^exposure before it is tonemapped.

@@ -3,7 +3,7 @@
 // window's resolution by VolumetricRenderPass; volumetric_composite.wgsl blends the result over the
 // scene. Outputs the light scattered towards the camera in rgb, and the transmittance in alpha.
 //
-// The light's colour comes from the settings rather than the global uniforms, as the debug UI can
+// The light's color comes from the settings rather than the global uniforms, as the debug UI can
 // override it.
 
 #include "/shaders/pandora/globals.wgsl"

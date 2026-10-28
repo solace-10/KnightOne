@@ -107,15 +107,15 @@ format on any GPU, for instance.
 
 | `usage` | Channels | Ships as | Use for |
 |---|---|---|---|
-| `color` | 4, sRGB | Basis payload, transcoded on load | Albedo, emissive, anything the eye reads as colour |
-| `linear` | 4, linear | Basis payload, transcoded on load | Four channels of data rather than colour |
+| `color` | 4, sRGB | Basis payload, transcoded on load | Albedo, emissive, anything the eye reads as color |
+| `linear` | 4, linear | Basis payload, transcoded on load | Four channels of data rather than color |
 | `mask` | 1, linear | `BC4_UNORM` directly | Coverage, gloss, AO, height - anything greyscale |
 | `normal` | 2, linear | `BC5_UNORM` directly | Tangent space normal maps |
 
 `mask` and `normal` do not take an `encoding`, because Basis is the wrong
 transport for them and they always produce the format above. UASTC is
 structurally a four channel format that spends eight bits per texel whatever it
-is given, so it cannot represent a mask any more cheaply than a colour map -
+is given, so it cannot represent a mask any more cheaply than a color map -
 declaring a single channel source changes the file's channel marker and not one
 byte of its payload. Storing the block format directly is both smaller on disk
 and half the memory on the GPU. Forge gets there by encoding to UASTC and then
@@ -140,7 +140,7 @@ otherwise. There are two such reasons:
 | `none` | Plain RGBA8 + zstd | Block compression artifacts would show |
 
 `basis-lz` is dramatically smaller and visibly worse - measured on this project's
-8K colour map, 1.94 MiB against UASTC's 15.4 MiB, and 33.8 dB against 48.5 dB.
+8K color map, 1.94 MiB against UASTC's 15.4 MiB, and 33.8 dB against 48.5 dB.
 That is a poor trade for a hero texture and a good one for background detail, a
 decal, or anything only ever seen small.
 

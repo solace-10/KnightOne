@@ -190,7 +190,7 @@ void Sector::SpawnLight(const ResourceDataStore* pSectorInfo)
     }
 }
 
-// Missing keys keep the pass's current values. The colour, if given, overrides the directional light's.
+// Missing keys keep the pass's current values. The color, if given, overrides the directional light's.
 void Sector::InitializeVolumetrics(const ResourceDataStore* pSectorInfo)
 {
     VolumetricRenderPass* pVolumetricRenderPass = Game::Get()->GetVolumetricRenderPass();

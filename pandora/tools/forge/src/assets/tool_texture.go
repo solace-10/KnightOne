@@ -33,9 +33,9 @@ type textureOptions struct {
 	Width  int `json:"width"`
 	Height int `json:"height"`
 
-	// Usage decides how many channels the texture keeps, the colour space it is
+	// Usage decides how many channels the texture keeps, the color space it is
 	// encoded in, and the format it ends up in. Textures that carry data rather
-	// than colour must be linear, or their values are gamma-mangled on load.
+	// than color must be linear, or their values are gamma-mangled on load.
 	Usage string `json:"usage"`
 
 	// Encoding deviates from the block compression a four channel usage would
@@ -59,7 +59,7 @@ const (
 
 	// encodingBasisLZ trades quality for size, and only makes sense where the
 	// download matters more than the texture does - background detail, decals,
-	// anything the eye does not rest on. Measured on this project's colour map it
+	// anything the eye does not rest on. Measured on this project's color map it
 	// is eight times smaller than UASTC and 15 dB worse.
 	encodingBasisLZ = "basis-lz"
 
@@ -98,7 +98,7 @@ type texturePipeline struct {
 	// into before shipping, leaving no Basis payload behind. Basis is the wrong
 	// transport for one and two channel data: UASTC is structurally four channel
 	// and spends eight bits per texel whatever it is given, so it cannot even
-	// represent a mask more cheaply than a colour map.
+	// represent a mask more cheaply than a color map.
 	transcodeTarget string
 
 	// encoding is what --encode receives once the usage's default has been
@@ -233,7 +233,7 @@ func (t *textureTool) Compile(job *Job) error {
 
 	// --assign-tf labels the transfer function without touching the samples,
 	// which is what is wanted here: the sources are already sRGB encoded, so a
-	// linear usage is a statement that the bytes are data rather than colour
+	// linear usage is a statement that the bytes are data rather than color
 	// and must not be gamma decoded.
 	arguments := []string{"create", "--generate-mipmap",
 		"--format", pipeline.createFormat,

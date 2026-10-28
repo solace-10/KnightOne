@@ -78,7 +78,7 @@ void ResourceTexture2D::LoadInternal(FileReadResult result, FileSharedPtr pFile)
         if (IsKtx2(pData, dataSize))
         {
             // KTX2 records its own transfer function, so unlike the paths below this one
-            // does not have to assume anything about the colour space.
+            // does not have to assume anything about the color space.
             LoadFromMemoryKTX2(pFile->GetPath(), pData, dataSize);
         }
         else

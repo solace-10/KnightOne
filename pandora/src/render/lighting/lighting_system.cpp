@@ -228,7 +228,7 @@ AmbientSH LightingSystem::GetAmbientSH() const
     }
     else
     {
-        // Only the constant band, scaled so that it evaluates to the ambient colour everywhere.
+        // Only the constant band, scaled so that it evaluates to the ambient color everywhere.
         ambientSH[0] = m_AmbientLight.Color / 0.282095f;
     }
 

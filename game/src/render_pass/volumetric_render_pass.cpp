@@ -466,7 +466,6 @@ void VolumetricRenderPass::DrawDebugUI()
         ImGui::SliderFloat("Scatter intensity", &m_ScatterIntensity, 0.0f, 64.0f);
         ImGui::SliderFloat("Ambient intensity", &m_AmbientIntensity, 0.0f, 8.0f);
 
-        // Starts from the directional light's, so that turning it on changes nothing until the colour does.
         if (ImGui::Checkbox("Override color", &m_OverrideColor) && m_OverrideColor)
         {
             const DirectionalLight& directionalLight = GetRenderSystem()->GetLightingSystem()->GetDirectionalLight();
