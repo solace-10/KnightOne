@@ -10,14 +10,14 @@
 	"skybox": "/entity_prefabs/skyboxes/ember_reach.json",
 	"volumetrics": {
 		"medium": {
-			"extinction": 0.012,
-			"clumpiness": 0.55,
+			"extinction": 0.008,
+			"clumpiness": 0.2,
 			"anisotropy": 0.7
 		},
 		"light": {
 			"scatter_intensity": 8.0,
 			"ambient_intensity": 0.05,
-			"color": [1.0, 0.96, 0.68]
+			"color": [0.7, 0.75, 0.91]
 		}
 	}
 }

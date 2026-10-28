@@ -38,6 +38,7 @@ private:
     void DrawCameraDebugUI();
     void SpawnSkybox(const ResourceDataStore* pSectorInfo);
     void SpawnLight(const ResourceDataStore* pSectorInfo);
+    void InitializeVolumetrics(const ResourceDataStore* pSectorInfo);
     void SpawnPlayerFleet();
     void SpawnMech(const glm::vec3& position, float angle, bool isPlayerMech, WingRole role);
 

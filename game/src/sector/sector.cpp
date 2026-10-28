@@ -24,6 +24,8 @@
 #include "components/shield_component.hpp"
 #include "components/weapon_component.hpp"
 #include "entity_builder/entity_builder.hpp"
+#include "game.hpp"
+#include "render_pass/volumetric_render_pass.hpp"
 #include "sector/encounter.hpp"
 #include "sector/sector.hpp"
 #include "systems/ai_mech_controller_system.hpp"
@@ -93,6 +95,7 @@ void Sector::Initialize(ResourceDataStoreSharedPtr pSectorInfo)
 
     SpawnSkybox(pSectorInfo.get());
     SpawnLight(pSectorInfo.get());
+    InitializeVolumetrics(pSectorInfo.get());
     SpawnPlayerFleet();
 
     m_pEncounter = std::make_unique<Encounter>();
@@ -185,6 +188,42 @@ void Sector::SpawnLight(const ResourceDataStore* pSectorInfo)
         AmbientLightComponent& ambientLightComponent = m_pLight->AddComponent<AmbientLightComponent>();
         ambientLightComponent.SetColor(Json::DeserializeVec3(pSectorInfo, ambientLightObject.value(), "color"));
     }
+}
+
+// Missing keys keep the pass's current values. The colour, if given, overrides the directional light's.
+void Sector::InitializeVolumetrics(const ResourceDataStore* pSectorInfo)
+{
+    VolumetricRenderPass* pVolumetricRenderPass = Game::Get()->GetVolumetricRenderPass();
+    const auto volumetricsObject = Json::DeserializeObject(pSectorInfo, pSectorInfo->Data(), "volumetrics");
+    if (!pVolumetricRenderPass || !volumetricsObject.has_value())
+    {
+        return;
+    }
+
+    const auto mediumObject = Json::DeserializeObject(pSectorInfo, volumetricsObject.value(), "medium");
+    if (mediumObject.has_value())
+    {
+        pVolumetricRenderPass->SetExtinction(Json::DeserializeFloat(pSectorInfo, mediumObject.value(), "extinction", pVolumetricRenderPass->GetExtinction()));
+        pVolumetricRenderPass->SetClumpiness(Json::DeserializeFloat(pSectorInfo, mediumObject.value(), "clumpiness", pVolumetricRenderPass->GetClumpiness()));
+        pVolumetricRenderPass->SetAnisotropy(Json::DeserializeFloat(pSectorInfo, mediumObject.value(), "anisotropy", pVolumetricRenderPass->GetAnisotropy()));
+    }
+
+    const auto lightObject = Json::DeserializeObject(pSectorInfo, volumetricsObject.value(), "light");
+    bool lightColorOverridden = false;
+    if (lightObject.has_value())
+    {
+        pVolumetricRenderPass->SetScatterIntensity(Json::DeserializeFloat(pSectorInfo, lightObject.value(), "scatter_intensity", pVolumetricRenderPass->GetScatterIntensity()));
+        pVolumetricRenderPass->SetAmbientIntensity(Json::DeserializeFloat(pSectorInfo, lightObject.value(), "ambient_intensity", pVolumetricRenderPass->GetAmbientIntensity()));
+
+        const Result<Json::DeserializationError, glm::vec3> color = Json::TryDeserializeVec3(pSectorInfo, lightObject.value(), "color");
+        if (color.has_value())
+        {
+            pVolumetricRenderPass->SetColor(color.value());
+            lightColorOverridden = true;
+        }
+    }
+
+    pVolumetricRenderPass->SetColorOverridden(lightColorOverridden);
 }
 
 void Sector::SpawnPlayerFleet()

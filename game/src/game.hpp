@@ -21,6 +21,7 @@ public:
     void Shutdown();
 
     Sector* GetSector();
+    VolumetricRenderPass* GetVolumetricRenderPass();
 
     static Game* Get();
 
@@ -36,6 +37,11 @@ private:
 inline Sector* Game::GetSector()
 {
     return m_pSector.get();
+}
+
+inline VolumetricRenderPass* Game::GetVolumetricRenderPass()
+{
+    return m_pVolumetricRenderPass.get();
 }
 
 } // namespace WingsOfSteel

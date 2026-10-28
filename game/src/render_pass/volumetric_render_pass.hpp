@@ -29,6 +29,21 @@ public:
     void Execute(wgpu::CommandEncoder& encoder) override;
     void DrawDebugUI() override;
 
+    float GetExtinction() const;
+    void SetExtinction(float value);
+    float GetClumpiness() const;
+    void SetClumpiness(float value);
+    float GetAnisotropy() const;
+    void SetAnisotropy(float value);
+    float GetScatterIntensity() const;
+    void SetScatterIntensity(float value);
+    float GetAmbientIntensity() const;
+    void SetAmbientIntensity(float value);
+    bool IsColorOverridden() const;
+    void SetColorOverridden(bool state);
+    const glm::vec3& GetColor() const;
+    void SetColor(const glm::vec3& color);
+
 private:
     enum class View
     {
@@ -79,5 +94,75 @@ private:
     bool m_OverrideColor{ false };
     glm::vec3 m_Color{ 1.0f };
 };
+
+inline float VolumetricRenderPass::GetExtinction() const
+{
+    return m_Extinction;
+}
+
+inline void VolumetricRenderPass::SetExtinction(float value)
+{
+    m_Extinction = value;
+}
+
+inline float VolumetricRenderPass::GetClumpiness() const
+{
+    return m_Clumpiness;
+}
+
+inline void VolumetricRenderPass::SetClumpiness(float value)
+{
+    m_Clumpiness = value;
+}
+
+inline float VolumetricRenderPass::GetAnisotropy() const
+{
+    return m_Anisotropy;
+}
+
+inline void VolumetricRenderPass::SetAnisotropy(float value)
+{
+    m_Anisotropy = value;
+}
+
+inline float VolumetricRenderPass::GetScatterIntensity() const
+{
+    return m_ScatterIntensity;
+}
+
+inline void VolumetricRenderPass::SetScatterIntensity(float value)
+{
+    m_ScatterIntensity = value;
+}
+
+inline float VolumetricRenderPass::GetAmbientIntensity() const
+{
+    return m_AmbientIntensity;
+}
+
+inline void VolumetricRenderPass::SetAmbientIntensity(float value)
+{
+    m_AmbientIntensity = value;
+}
+
+inline bool VolumetricRenderPass::IsColorOverridden() const
+{
+    return m_OverrideColor;
+}
+
+inline void VolumetricRenderPass::SetColorOverridden(bool state)
+{
+    m_OverrideColor = state;
+}
+
+inline const glm::vec3& VolumetricRenderPass::GetColor() const
+{
+    return m_Color;
+}
+
+inline void VolumetricRenderPass::SetColor(const glm::vec3& color)
+{
+    m_Color = color;
+}
 
 } // namespace WingsOfSteel
